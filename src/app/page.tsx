@@ -98,7 +98,7 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Please wait while we craft a system design challenge for you.
+                    Please wait while we craft a system design challenge for you. This might take a moment, especially if generating a diagram.
                   </p>
                 </CardContent>
               </Card>
@@ -143,7 +143,7 @@ export default function HomePage() {
               />
             ))}
 
-            {problemData && problemData.diagram && visibility.diagram && (
+            {problemData && problemData.diagramImageUri && visibility.diagram && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
@@ -152,15 +152,11 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <h4 className="font-medium mb-2 text-muted-foreground">Textual Description:</h4>
-                    <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{problemData.diagram}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2 text-muted-foreground">Visual Representation (Placeholder):</h4>
+                    <h4 className="font-medium mb-2 text-muted-foreground">Generated Schematic Diagram:</h4>
                     <div className="flex justify-center p-4 border rounded-md bg-secondary/30">
                        <Image 
-                        src="https://picsum.photos/seed/systemdesign/800/600" 
-                        alt="System Design Diagram Placeholder" 
+                        src={problemData.diagramImageUri} 
+                        alt="Generated System Design Diagram" 
                         width={800} 
                         height={600}
                         className="rounded-md border object-contain max-w-full h-auto"
@@ -169,8 +165,30 @@ export default function HomePage() {
                        />
                     </div>
                   </div>
+                  {problemData.diagramDescription && ( 
+                    <div>
+                        <h4 className="font-medium mt-4 mb-2 text-muted-foreground">Diagram Description (Used for Generation):</h4>
+                        <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{problemData.diagramDescription}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+            )}
+            {/* Fallback if image generation failed but description exists */}
+            {problemData && !problemData.diagramImageUri && problemData.diagramDescription && visibility.diagram && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <Projector className="text-primary" /> Diagram Description
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{problemData.diagramDescription}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          A visual diagram could not be generated. Displaying the textual description instead.
+                        </p>
+                    </CardContent>
+                </Card>
             )}
           </main>
         </ScrollArea>

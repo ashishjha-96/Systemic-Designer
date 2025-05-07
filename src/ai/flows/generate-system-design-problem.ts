@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Generates a system design problem with a solution, reasoning, key concepts, diagrams, and problem type.
+ * @fileOverview Generates a system design problem with a solution, reasoning, key concepts, diagram description, diagram image, and problem type.
  *
  * - generateSystemDesignProblem - A function that generates a system design problem.
  * - GenerateSystemDesignProblemInput - The input type for the generateSystemDesignProblem function.
@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { generateDiagramImage } from './generate-diagram-image';
 
 const GenerateSystemDesignProblemInputSchema = z.object({
   difficultyLevel: z
@@ -28,7 +29,8 @@ const GenerateSystemDesignProblemOutputSchema = z.object({
   solution: z.string().describe('The proposed solution to the system design problem, in detailed Markdown format. Include explanations for each component and their interactions.'),
   reasoning: z.string().describe('The reasoning behind the proposed solution, in detailed Markdown format. Explain the trade-offs and design choices made.'),
   keyConcepts: z.string().describe('The key concepts covered by the problem, as a comma-separated string.'),
-  diagram: z.string().describe('A textual description of a diagram illustrating the system design solution.'),
+  diagramDescription: z.string().describe('A detailed textual description for an AI image generation model to create a schematic diagram. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow.'),
+  diagramImageUri: z.string().optional().describe('A generated schematic diagram of the system design solution, as a data URI. This might be absent if image generation fails.'),
   generatedProblemType: z.string().describe('The specific type of problem that was generated or used by the AI.'),
 });
 export type GenerateSystemDesignProblemOutput = z.infer<
@@ -44,9 +46,9 @@ export async function generateSystemDesignProblem(
 const generateSystemDesignProblemPrompt = ai.definePrompt({
   name: 'generateSystemDesignProblemPrompt',
   input: {schema: GenerateSystemDesignProblemInputSchema},
-  output: {schema: GenerateSystemDesignProblemOutputSchema},
+  output: {schema: GenerateSystemDesignProblemOutputSchema.omit({ diagramImageUri: true })}, // The prompt won't generate the image URI directly
   prompt: `You are an expert system design problem generator.
-Your goal is to populate a JSON object with the following fields: "problemStatement", "solution", "reasoning", "keyConcepts", "diagram", and "generatedProblemType".
+Your goal is to populate a JSON object with the following fields: "problemStatement", "solution", "reasoning", "keyConcepts", "diagramDescription", and "generatedProblemType".
 
 Inputs:
 - Difficulty Level: {{{difficultyLevel}}}
@@ -76,9 +78,9 @@ Instructions:
     -   \`solution\`: A high-level proposed solution. **This must be in detailed Markdown format**, explaining each component, their interactions, and how they address the problem requirements. Include detailed explanations and considerations for scalability, reliability, and performance.
     -   \`reasoning\`: The rationale behind the key design choices in your solution. **This must be in detailed Markdown format**, explaining trade-offs considered (e.g., consistency vs. availability, latency vs. cost), why specific technologies or patterns were chosen over alternatives, and potential bottlenecks or limitations.
     -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices, Message Queues, Data Replication).
-    -   \`diagram\`: A textual description of a diagram that would visually represent your proposed system architecture. This description should be detailed enough for someone to sketch the diagram, including components, data flow, and interactions.
+    -   \`diagramDescription\`: A detailed textual description for an AI image generation model to create a schematic diagram. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow. Focus on clear, concise instructions for a visual schematic. For example: "A schematic diagram showing a user icon connecting via the internet (cloud icon) to a load balancer. The load balancer distributes requests to three rectangular application server blocks, labeled 'App Server'. Each app server has arrows pointing to a shared cylindrical database icon labeled 'Database' and a shared rectangular cache icon labeled 'Cache'. Data flow arrows should indicate request and response paths clearly."
 
-Ensure your output is a valid JSON object matching the schema.
+Ensure your output is a valid JSON object matching the schema (excluding diagramImageUri).
 `,
 });
 
@@ -89,7 +91,27 @@ const generateSystemDesignProblemFlow = ai.defineFlow(
     outputSchema: GenerateSystemDesignProblemOutputSchema,
   },
   async input => {
-    const {output} = await generateSystemDesignProblemPrompt(input);
-    return output!;
+    const {output: mainContentOutput} = await generateSystemDesignProblemPrompt(input);
+
+    if (!mainContentOutput) {
+      throw new Error('Failed to generate main content for the system design problem.');
+    }
+
+    let diagramImageUri: string | undefined = undefined;
+    if (mainContentOutput.diagramDescription) {
+      try {
+        // Generate diagram image in parallel (or sequentially if preferred)
+        const imageOutput = await generateDiagramImage({ prompt: mainContentOutput.diagramDescription });
+        diagramImageUri = imageOutput.imageDataUri;
+      } catch (error) {
+        console.error("Failed to generate diagram image:", error);
+        // Proceed without the image URI if generation fails
+      }
+    }
+
+    return {
+      ...mainContentOutput,
+      diagramImageUri: diagramImageUri,
+    };
   }
 );
