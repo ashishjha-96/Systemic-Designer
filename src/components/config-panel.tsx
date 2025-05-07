@@ -105,9 +105,9 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
             name="problemType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Problem Type</FormLabel>
+                <FormLabel>Problem Type (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Design a URL shortener" {...field} />
+                  <Input placeholder="e.g., Design a URL shortener (AI will generate if blank)" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -7,17 +7,19 @@ import type { GenerateSystemDesignProblemOutput } from "@/ai/flows/generate-syst
 import { AppHeader } from "@/components/layout/header";
 import { ConfigPanel, type VisibilityState } from "@/components/config-panel";
 import { ProblemSection } from "@/components/problem-section";
-import { generateProblemAction, type ProblemGenerationFormValues } from "@/app/actions";
+import { generateProblemAction } from "@/app/actions"; // Removed type ProblemGenerationFormValues as it's implicitly typed by generateProblemAction
+import type { ProblemGenerationFormValues } from "@/lib/schemas"; // Explicitly import for use with handleGenerateProblem
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   FileText,
   Lightbulb,
-  Sparkles, // Using Sparkles for Reasoning as a more positive icon
+  Sparkles, 
   BookOpenText,
   Projector,
-  AlertTriangle
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -59,7 +61,7 @@ export default function HomePage() {
   };
 
   const sections = problemData ? [
-    { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem },
+    { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem, problemType: problemData.generatedProblemType },
     { id: 'solution', title: "Solution", content: problemData.solution, icon: <Lightbulb className="text-primary" />, isVisible: visibility.solution },
     { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="text-primary" />, isVisible: visibility.reasoning },
     { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="text-primary" />, isVisible: visibility.keyConcepts },
@@ -114,6 +116,22 @@ export default function HomePage() {
               </Card>
             )}
             
+            {problemData && problemData.generatedProblemType && (
+                <Card className="bg-secondary/50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Info className="text-primary h-5 w-5" />
+                            System Design Focus
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-md">
+                            <span className="font-semibold">Problem Type:</span> {problemData.generatedProblemType}
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
+
             {sections.map(section => (
               <ProblemSection
                 key={section.id}
@@ -146,7 +164,7 @@ export default function HomePage() {
                         height={600}
                         className="rounded-md border object-contain max-w-full h-auto"
                         data-ai-hint="system architecture"
-                        priority={false} // Not critical for LCP
+                        priority={false} 
                        />
                     </div>
                   </div>
