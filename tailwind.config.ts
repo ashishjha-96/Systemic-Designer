@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -17,8 +18,8 @@ export default {
     },
   	extend: {
       fontFamily: {
-        sans: ["var(--font-sans)"],
-        mono: ["var(--font-mono)"],
+        sans: ["var(--font-geist-sans)"], // Updated to use Geist Sans variable
+        mono: ["var(--font-mono)"], // Remains '--font-mono' as GeistMono is not currently used. If re-added, change to 'var(--font-geist-mono)'.
       },
   		colors: {
   			background: 'hsl(var(--background))',

@@ -2,14 +2,8 @@
 "use server";
 
 import { generateSystemDesignProblem, type GenerateSystemDesignProblemInput, type GenerateSystemDesignProblemOutput } from '@/ai/flows/generate-system-design-problem';
-import { z } from 'zod';
+import { ProblemGenerationSchema, type ProblemGenerationFormValues } from '@/lib/schemas';
 
-export const ProblemGenerationSchema = z.object({
-  difficultyLevel: z.enum(['Easy', 'Medium', 'Hard']),
-  problemType: z.string().min(3, "Problem type must be at least 3 characters long."),
-});
-
-export type ProblemGenerationFormValues = z.infer<typeof ProblemGenerationSchema>;
 
 interface ActionResult {
   success: boolean;
@@ -21,7 +15,15 @@ export async function generateProblemAction(values: ProblemGenerationFormValues)
   try {
     const validatedValues = ProblemGenerationSchema.safeParse(values);
     if (!validatedValues.success) {
-      return { success: false, error: "Invalid input: " + validatedValues.error.flatten().fieldErrors };
+      // Safely construct the error message
+      let errorMessage = "Invalid input: ";
+      const fieldErrors = validatedValues.error.flatten().fieldErrors;
+      for (const key in fieldErrors) {
+        if (fieldErrors[key]) {
+          errorMessage += `${key}: ${fieldErrors[key]!.join(', ')}; `;
+        }
+      }
+      return { success: false, error: errorMessage.trim() };
     }
 
     const input: GenerateSystemDesignProblemInput = {
@@ -33,6 +35,9 @@ export async function generateProblemAction(values: ProblemGenerationFormValues)
     return { success: true, data: result };
   } catch (error) {
     console.error("Error generating system design problem:", error);
-    return { success: false, error: "Failed to generate problem. Please try again." };
+    // Check if error is an instance of Error to safely access message property
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate problem. Please try again.";
+    return { success: false, error: errorMessage };
   }
 }
+

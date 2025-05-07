@@ -24,7 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { ProblemGenerationSchema, type ProblemGenerationFormValues } from "@/app/actions";
+import { ProblemGenerationSchema, type ProblemGenerationFormValues } from "@/lib/schemas";
 import { Wand2, Settings2, Eye, EyeOff } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 
