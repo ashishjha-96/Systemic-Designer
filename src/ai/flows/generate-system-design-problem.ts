@@ -73,10 +73,10 @@ Instructions:
 2.  **Generate Content for Other JSON Fields**:
     Using the determined \`generatedProblemType\` and the "{{{difficultyLevel}}}" difficulty level, generate content for the following fields:
     -   \`problemStatement\`: A clear and concise statement of the system to be designed.
-    -   \`solution\`: A high-level proposed solution. **This must be in detailed Markdown format**, explaining each component, their interactions, and how they address the problem requirements.
-    -   \`reasoning\`: The rationale behind the key design choices in your solution. **This must be in detailed Markdown format**, explaining trade-offs considered, and why specific technologies or patterns were chosen.
-    -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices).
-    -   \`diagram\`: A textual description of a diagram that would visually represent your proposed system architecture. This description should be detailed enough for someone to sketch the diagram.
+    -   \`solution\`: A high-level proposed solution. **This must be in detailed Markdown format**, explaining each component, their interactions, and how they address the problem requirements. Include detailed explanations and considerations for scalability, reliability, and performance.
+    -   \`reasoning\`: The rationale behind the key design choices in your solution. **This must be in detailed Markdown format**, explaining trade-offs considered (e.g., consistency vs. availability, latency vs. cost), why specific technologies or patterns were chosen over alternatives, and potential bottlenecks or limitations.
+    -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices, Message Queues, Data Replication).
+    -   \`diagram\`: A textual description of a diagram that would visually represent your proposed system architecture. This description should be detailed enough for someone to sketch the diagram, including components, data flow, and interactions.
 
 Ensure your output is a valid JSON object matching the schema.
 `,
@@ -93,4 +93,3 @@ const generateSystemDesignProblemFlow = ai.defineFlow(
     return output!;
   }
 );
-```
