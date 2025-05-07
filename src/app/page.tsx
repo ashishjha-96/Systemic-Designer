@@ -7,8 +7,8 @@ import type { GenerateSystemDesignProblemOutput } from "@/ai/flows/generate-syst
 import { AppHeader } from "@/components/layout/header";
 import { ConfigPanel, type VisibilityState } from "@/components/config-panel";
 import { ProblemSection } from "@/components/problem-section";
-import { generateProblemAction } from "@/app/actions"; // Removed type ProblemGenerationFormValues as it's implicitly typed by generateProblemAction
-import type { ProblemGenerationFormValues } from "@/lib/schemas"; // Explicitly import for use with handleGenerateProblem
+import { generateProblemAction } from "@/app/actions"; 
+import type { ProblemGenerationFormValues } from "@/lib/schemas"; 
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,10 +61,10 @@ export default function HomePage() {
   };
 
   const sections = problemData ? [
-    { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem, problemType: problemData.generatedProblemType },
-    { id: 'solution', title: "Solution", content: problemData.solution, icon: <Lightbulb className="text-primary" />, isVisible: visibility.solution },
-    { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="text-primary" />, isVisible: visibility.reasoning },
-    { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="text-primary" />, isVisible: visibility.keyConcepts },
+    { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem, problemType: problemData.generatedProblemType, isMarkdown: false },
+    { id: 'solution', title: "Solution", content: problemData.solution, icon: <Lightbulb className="text-primary" />, isVisible: visibility.solution, isMarkdown: true },
+    { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="text-primary" />, isVisible: visibility.reasoning, isMarkdown: true },
+    { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="text-primary" />, isVisible: visibility.keyConcepts, isMarkdown: false },
   ] : [];
 
   return (
@@ -139,6 +139,7 @@ export default function HomePage() {
                 content={section.content}
                 icon={section.icon}
                 isVisible={section.isVisible}
+                isMarkdown={section.isMarkdown}
               />
             ))}
 

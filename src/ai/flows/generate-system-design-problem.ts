@@ -25,8 +25,8 @@ export type GenerateSystemDesignProblemInput = z.infer<
 
 const GenerateSystemDesignProblemOutputSchema = z.object({
   problemStatement: z.string().describe('The generated system design problem statement.'),
-  solution: z.string().describe('The proposed solution to the system design problem.'),
-  reasoning: z.string().describe('The reasoning behind the proposed solution.'),
+  solution: z.string().describe('The proposed solution to the system design problem, in detailed Markdown format. Include explanations for each component and their interactions.'),
+  reasoning: z.string().describe('The reasoning behind the proposed solution, in detailed Markdown format. Explain the trade-offs and design choices made.'),
   keyConcepts: z.string().describe('The key concepts covered by the problem, as a comma-separated string.'),
   diagram: z.string().describe('A textual description of a diagram illustrating the system design solution.'),
   generatedProblemType: z.string().describe('The specific type of problem that was generated or used by the AI.'),
@@ -73,8 +73,8 @@ Instructions:
 2.  **Generate Content for Other JSON Fields**:
     Using the determined \`generatedProblemType\` and the "{{{difficultyLevel}}}" difficulty level, generate content for the following fields:
     -   \`problemStatement\`: A clear and concise statement of the system to be designed.
-    -   \`solution\`: A high-level proposed solution.
-    -   \`reasoning\`: The rationale behind the key design choices in your solution.
+    -   \`solution\`: A high-level proposed solution. **This must be in detailed Markdown format**, explaining each component, their interactions, and how they address the problem requirements.
+    -   \`reasoning\`: The rationale behind the key design choices in your solution. **This must be in detailed Markdown format**, explaining trade-offs considered, and why specific technologies or patterns were chosen.
     -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices).
     -   \`diagram\`: A textual description of a diagram that would visually represent your proposed system architecture. This description should be detailed enough for someone to sketch the diagram.
 
@@ -93,3 +93,4 @@ const generateSystemDesignProblemFlow = ai.defineFlow(
     return output!;
   }
 );
+```
