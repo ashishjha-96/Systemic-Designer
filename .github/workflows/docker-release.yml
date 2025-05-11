@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    enviornment: docker-public
+    environment: docker-public
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
