@@ -14,3 +14,19 @@
 - Clear and readable sans-serif fonts for problem statements, solutions, and reasoning.
 - Use a modular layout with clear separation between problem, solution, reasoning, key concepts, and diagrams.
 - Use simple and consistent icons to represent different system design concepts.
+
+## Dockerization
+
+To build the Docker image, navigate to the root of the project and run:
+
+```bash
+docker build -t systematic-designer .
+```
+
+To run the Docker container, you need to provide your Google API Key as an environment variable. Replace `YOUR_GOOGLE_API_KEY` with your actual key:
+
+```bash
+docker run -p 3000:3000 -e GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY systematic-designer
+```
+
+This will run the application on port 3000.

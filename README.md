@@ -20,6 +20,24 @@ To get started, take a look at src/app/page.tsx.
 - Run the development server using `npm run dev`.
 - Access the application at `http://localhost:3000`.
 
+## Dockerization
+
+To build the Docker image for multiple architectures using buildx, navigate to the root of the project and run:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t systematic-designer .
+```
+
+*Note: You may need to set up a buildx builder that supports these platforms.*
+
+To run the Docker container with your Google API Key, replace `YOUR_GOOGLE_API_KEY` with your actual key:
+
+```bash
+docker run -p 3000:3000 -e GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY systematic-designer
+```
+
+This will run the application on port 3000.
+
 ## Getting Started
 
 To start exploring the application, take a look at the main page component in `src/app/page.tsx`.
