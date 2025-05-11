@@ -30,7 +30,9 @@ import type { Dispatch, SetStateAction } from "react";
 
 export interface VisibilityState {
   problem: boolean;
+  scaleEstimates: boolean;
   solution: boolean;
+  capacityPlanning: boolean;
   reasoning: boolean;
   keyConcepts: boolean;
   diagram: boolean;
@@ -45,7 +47,9 @@ interface ConfigPanelProps {
 
 const visibilityOptions: { key: keyof VisibilityState; label: string }[] = [
   { key: "problem", label: "Problem Statement" },
+  { key: "scaleEstimates", label: "Scale Estimates" },
   { key: "solution", label: "Solution" },
+  { key: "capacityPlanning", label: "Capacity Planning" },
   { key: "reasoning", label: "Reasoning" },
   { key: "keyConcepts", label: "Key Concepts" },
   { key: "diagram", label: "Diagram" },

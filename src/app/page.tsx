@@ -20,6 +20,8 @@ import {
   Projector,
   AlertTriangle,
   Info,
+  Scaling, // New icon for Scale Estimates
+  Calculator, // New icon for Capacity Planning
 } from "lucide-react";
 
 export default function HomePage() {
@@ -30,7 +32,9 @@ export default function HomePage() {
 
   const [visibility, setVisibility] = useState<VisibilityState>({
     problem: true,
+    scaleEstimates: true, // Added scaleEstimates
     solution: true,
+    capacityPlanning: true, // Added capacityPlanning
     reasoning: true,
     keyConcepts: true,
     diagram: true,
@@ -62,7 +66,9 @@ export default function HomePage() {
 
   const sections = problemData ? [
     { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem, problemType: problemData.generatedProblemType, isMarkdown: false },
+    { id: 'scaleEstimates', title: "Scale Estimates", content: problemData.scaleEstimates, icon: <Scaling className="text-primary" />, isVisible: visibility.scaleEstimates, isMarkdown: true },
     { id: 'solution', title: "Solution", content: problemData.solution, icon: <Lightbulb className="text-primary" />, isVisible: visibility.solution, isMarkdown: true },
+    { id: 'capacityPlanning', title: "Capacity Planning", content: problemData.capacityPlanning, icon: <Calculator className="text-primary" />, isVisible: visibility.capacityPlanning, isMarkdown: true },
     { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="text-primary" />, isVisible: visibility.reasoning, isMarkdown: true },
     { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="text-primary" />, isVisible: visibility.keyConcepts, isMarkdown: false },
   ] : [];

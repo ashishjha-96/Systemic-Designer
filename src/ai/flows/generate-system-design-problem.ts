@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Generates a system design problem with a solution, reasoning, key concepts, diagram description, diagram image, and problem type.
+ * @fileOverview Generates a system design problem with a solution, reasoning, key concepts, diagram description, diagram image, problem type, scale estimates, and capacity planning.
  *
  * - generateSystemDesignProblem - A function that generates a system design problem.
  * - GenerateSystemDesignProblemInput - The input type for the generateSystemDesignProblem function.
@@ -8,7 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import { generateDiagramImage } from './generate-diagram-image';
 
 const GenerateSystemDesignProblemInputSchema = z.object({
@@ -26,10 +26,12 @@ export type GenerateSystemDesignProblemInput = z.infer<
 
 const GenerateSystemDesignProblemOutputSchema = z.object({
   problemStatement: z.string().describe('The generated system design problem statement.'),
+  scaleEstimates: z.string().describe('The scale estimates for the system (e.g., DAU, QPS, storage requirements), in Markdown format.'),
   solution: z.string().describe('The proposed solution to the system design problem, in detailed Markdown format. Include explanations for each component and their interactions.'),
+  capacityPlanning: z.string().describe('Detailed capacity planning for each component in the solution based on the scale estimates, in Markdown format. This should cover how many resources (servers, database capacity, etc.) are needed.'),
   reasoning: z.string().describe('The reasoning behind the proposed solution, in detailed Markdown format. Explain the trade-offs and design choices made.'),
   keyConcepts: z.string().describe('The key concepts covered by the problem, as a comma-separated string.'),
-  diagramDescription: z.string().describe('A detailed textual description for an AI image generation model to create a schematic diagram. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow.'),
+  diagramDescription: z.string().describe('A detailed textual description for an AI image generation model to create a schematic diagram. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow. Emphasize clear, standard symbols and labels for a professional technical diagram.'),
   diagramImageUri: z.string().optional().describe('A generated schematic diagram of the system design solution, as a data URI. This might be absent if image generation fails.'),
   generatedProblemType: z.string().describe('The specific type of problem that was generated or used by the AI.'),
 });
@@ -48,7 +50,7 @@ const generateSystemDesignProblemPrompt = ai.definePrompt({
   input: {schema: GenerateSystemDesignProblemInputSchema},
   output: {schema: GenerateSystemDesignProblemOutputSchema.omit({ diagramImageUri: true })}, // The prompt won't generate the image URI directly
   prompt: `You are an expert system design problem generator.
-Your goal is to populate a JSON object with the following fields: "problemStatement", "solution", "reasoning", "keyConcepts", "diagramDescription", and "generatedProblemType".
+Your goal is to populate a JSON object with the following fields: "problemStatement", "scaleEstimates", "solution", "capacityPlanning", "reasoning", "keyConcepts", "diagramDescription", and "generatedProblemType".
 
 Inputs:
 - Difficulty Level: {{{difficultyLevel}}}
@@ -75,10 +77,17 @@ Instructions:
 2.  **Generate Content for Other JSON Fields**:
     Using the determined \`generatedProblemType\` and the "{{{difficultyLevel}}}" difficulty level, generate content for the following fields:
     -   \`problemStatement\`: A clear and concise statement of the system to be designed.
-    -   \`solution\`: A high-level proposed solution. **This must be in detailed Markdown format**, explaining each component, their interactions, and how they address the problem requirements. Include detailed explanations and considerations for scalability, reliability, and performance.
+    -   \`scaleEstimates\`: Provide realistic scale estimates for the system. **This must be in detailed Markdown format**. Include metrics like Daily Active Users (DAU), Queries Per Second (QPS) for reads and writes, data storage requirements (e.g., TB/year), data ingestion rate (e.g., GB/hour), and peak network bandwidth. The scale should be appropriate for the "{{{difficultyLevel}}}". For example, an "Easy" problem might have 10k DAU and 100 QPS, while a "Hard" problem might have 100M DAU and 1M QPS.
+    -   \`solution\`: A high-level proposed solution. **This must be in detailed Markdown format**, explaining each component (e.g., Load Balancers, Web Servers, Application Servers, Databases (SQL/NoSQL), Caches, Message Queues, CDNs, Object Storage, Monitoring/Alerting), their interactions, and how they address the problem requirements. Provide thorough explanations and considerations for scalability, reliability, and performance.
+    -   \`capacityPlanning\`: Detailed capacity planning based on the \`scaleEstimates\`. **This must be in detailed Markdown format**. For each major component in your \`solution\`, estimate the required resources. For example:
+        *   Number of web/app server instances (e.g., "Given 1M QPS and assuming each server handles 10k QPS, we need 100 servers + 20% buffer = 120 servers").
+        *   Database capacity and throughput (e.g., "For 10TB initial storage growing at 5TB/year, and 50k read QPS / 5k write QPS, we might need a sharded cluster of X nodes with Y specs").
+        *   Cache size (e.g., "To cache 20% of the hot dataset of 1TB, we need 200GB of cache memory").
+        *   Bandwidth requirements for CDN and storage.
+        Explain your calculations and assumptions clearly.
     -   \`reasoning\`: The rationale behind the key design choices in your solution. **This must be in detailed Markdown format**, explaining trade-offs considered (e.g., consistency vs. availability, latency vs. cost), why specific technologies or patterns were chosen over alternatives, and potential bottlenecks or limitations.
-    -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices, Message Queues, Data Replication).
-    -   \`diagramDescription\`: A detailed textual description for an AI image generation model to create a schematic diagram. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow. Focus on clear, concise instructions for a visual schematic. For example: "A schematic diagram showing a user icon connecting via the internet (cloud icon) to a load balancer. The load balancer distributes requests to three rectangular application server blocks, labeled 'App Server'. Each app server has arrows pointing to a shared cylindrical database icon labeled 'Database' and a shared rectangular cache icon labeled 'Cache'. Data flow arrows should indicate request and response paths clearly."
+    -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices, Message Queues, Data Replication, Idempotency, Rate Limiting, Circuit Breaker).
+    -   \`diagramDescription\`: A detailed textual description for an AI image generation model to create a **schematic diagram**. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow. Use standard system design symbols (e.g., rectangles for servers, cylinders for databases, cloud for internet, arrows for data flow). Ensure components are clearly labeled. For example: "A schematic diagram showing a user icon connecting via the internet (cloud icon) to a DNS. The DNS resolves to a Global Load Balancer (GLB). The GLB directs traffic to Regional Load Balancers (RLB). Each RLB distributes requests to a fleet of rectangular application server blocks, labeled 'App Server (AS)'. Each app server has arrows indicating read/write operations to a sharded cylindrical database cluster labeled 'Sharded DB (e.g., Cassandra)' and a rectangular cache cluster labeled 'Distributed Cache (e.g., Redis)'. App servers might also publish messages to a 'Message Queue (e.g., Kafka)' which are consumed by 'Worker Services'. Arrows must clearly show request paths, response paths, and data flow directions between all components."
 
 Ensure your output is a valid JSON object matching the schema (excluding diagramImageUri).
 `,
