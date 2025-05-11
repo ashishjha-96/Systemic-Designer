@@ -1,35 +1,57 @@
-# Stage 1: Build the application
-FROM node:20 AS builder
+# Dockerfile
 
+# 1. Install dependencies only when needed
+FROM node:20-alpine AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json /app/
-COPY package-lock.json /app/
+# Install dependencies based on the preferred package manager
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
 
-RUN npm install
 
-COPY . /app/ # Copy rest of the application code
+# 2. Rebuild the source code only when needed
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+# ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
 
-# Stage 2: Run the application
-FROM node:20-alpine
-
+# 3. Production image, copy all the files and run next
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Copy package.json and lock file for installing production dependencies
-COPY package.json /app/
-COPY package-lock.json /app/
+ENV NODE_ENV production
+# Uncomment the following line in case you want to disable telemetry during runtime.
+# ENV NEXT_TELEMETRY_DISABLED 1
 
-# Install only production dependencies
-RUN npm install --production
+# Copy the standalone output
+COPY --from=builder /app/.next/standalone ./ 
+# Copy the public folder from the standalone output (it's already there)
+# COPY --from=builder /app/.next/standalone/public ./public
+# Copy the static assets from the standalone output (it's already there)
+# COPY --from=builder /app/.next/standalone/.next/static ./.next/static
 
-# Copy the built application
-COPY --from=builder /app/.next /app/.next
-
-# If next.config.js/ts is needed at runtime, copy it.
-COPY --from=builder /app/next.config.ts /app/next.config.ts
+# Set the correct user for running the application
+# USER nextjs
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+ENV PORT 3000
+# set hostname to localhost
+ENV HOSTNAME "0.0.0.0"
+
+# server.js is created by next build with output: standalone
+CMD ["node", "server.js"]
