@@ -3,12 +3,12 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-COPY package.json ./
-COPY package-lock.json ./ # Assuming package-lock.json based on the list
+COPY package.json /app/
+COPY package-lock.json /app/
 
 RUN npm install
 
-COPY . . # Copy rest of the application code
+COPY . /app/ # Copy rest of the application code
 
 RUN npm run build
 
@@ -18,17 +18,17 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package.json and lock file for installing production dependencies
-COPY package.json ./
-COPY package-lock.json ./ # Assuming package-lock.json based on the list
+COPY package.json /app/
+COPY package-lock.json /app/
 
 # Install only production dependencies
 RUN npm install --production
 
 # Copy the built application
-COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/.next /app/.next
 
 # If next.config.js/ts is needed at runtime, copy it.
-COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/next.config.ts /app/next.config.ts
 
 EXPOSE 3000
 
