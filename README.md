@@ -1,6 +1,7 @@
 # System Design AI
-
 This is a web application that generates system design problems and visualizes the solutions using AI. It leverages Next.js, Genkit, and the Google AI SDK to provide a platform for practicing system design interviews and learning about different architectural patterns.
+
+![App Screenshot](/docs/snapshot.png)
 
 ## Features
 
