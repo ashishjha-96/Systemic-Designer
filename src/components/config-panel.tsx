@@ -25,7 +25,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { ProblemGenerationSchema, type ProblemGenerationFormValues } from "@/lib/schemas";
-import { Wand2, Settings2, Eye, EyeOff } from "lucide-react";
+import { supportedModels } from '@/lib/models'; // Import supported models
+import { Wand2, Settings2, Eye, EyeOff, Cpu } from "lucide-react"; // Added Cpu icon
 import type { Dispatch, SetStateAction } from "react";
 
 export interface VisibilityState {
@@ -61,6 +62,7 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
     defaultValues: {
       difficultyLevel: "Medium",
       problemType: "",
+      modelName: 'googleai/gemini-2.0-flash', // Default model from schema
     },
   });
 
@@ -78,7 +80,7 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
         <Settings2 className="h-6 w-6 text-primary" />
         <h2 className="text-2xl font-semibold">Configuration</h2>
       </div>
-      
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
           <FormField
@@ -113,6 +115,36 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
                 <FormControl>
                   <Input placeholder="e.g., Design a URL shortener (AI will generate if blank)" {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="modelName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1">
+                  <Cpu className="h-4 w-4" /> AI Model (Text Generation)
+                </FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {supportedModels.map(model => (
+                      <SelectItem key={model} value={model}>
+                        {model.replace('googleai/', '')} {/* Display cleaner name */}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                 <p className="text-[0.8rem] text-muted-foreground">
+                  Note: Diagram generation always uses a specific model optimized for images.
+                </p>
                 <FormMessage />
               </FormItem>
             )}

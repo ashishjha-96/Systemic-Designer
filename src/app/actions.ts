@@ -13,6 +13,7 @@ interface ActionResult {
 
 export async function generateProblemAction(values: ProblemGenerationFormValues): Promise<ActionResult> {
   try {
+    // Validate form values including the new modelName field
     const validatedValues = ProblemGenerationSchema.safeParse(values);
     if (!validatedValues.success) {
       // Safely construct the error message
@@ -26,9 +27,11 @@ export async function generateProblemAction(values: ProblemGenerationFormValues)
       return { success: false, error: errorMessage.trim() };
     }
 
+    // Construct input for the Genkit flow, including the modelName
     const input: GenerateSystemDesignProblemInput = {
       difficultyLevel: validatedValues.data.difficultyLevel,
       problemType: validatedValues.data.problemType,
+      modelName: validatedValues.data.modelName, // Pass the validated model name
     };
 
     const result = await generateSystemDesignProblem(input);
@@ -40,4 +43,3 @@ export async function generateProblemAction(values: ProblemGenerationFormValues)
     return { success: false, error: errorMessage };
   }
 }
-
