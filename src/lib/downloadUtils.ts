@@ -2,268 +2,305 @@
 import jsPDF from 'jspdf';
 import type { GenerateSystemDesignProblemOutput } from "@/ai/flows/generate-system-design-problem";
 
-// Helper function to strip Markdown - enhanced slightly for PDF basic formatting
-function stripMarkdown(markdown: string | undefined | null): string {
-  if (!markdown) return '';
-  let text = markdown;
-  // Basic headers -> maybe add newline before
-  text = text.replace(/^#+\s+/gm, '\n');
-  // Bold/italic
-  text = text.replace(/(\*\*|__|\*|_)(.*?)\1/g, '$2');
-  // Code blocks - keep content, add separators
-  text = text.replace(/```[\s\S]*?```/g, (match) => '\n---\n' + match.replace(/```/g, '').trim() + '\n---\n');
-  // Inline code
-  text = text.replace(/`([^`]+)`/g, '$1');
-  // Links - keep text
-  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-  // Images - remove
-  text = text.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
-  // Horizontal rules
-  text = text.replace(/^(---|___|\*\*\*)\s*$/gm, '\n--------------------\n');
-  // Blockquotes - remove '>'
-  text = text.replace(/^>\s+/gm, '');
-  // Lists - basic conversion
-  text = text.replace(/^(\*|-|\d+\.)\s+/gm, ' - ');
-  // Collapse multiple blank lines
-  text = text.replace(/\n{3,}/g, '\n\n');
-  // Trim whitespace
-  return text.trim();
-}
+// Constants for PDF generation
+const FONT_SIZES = {
+    h1: 18,
+    h2: 14,
+    h3: 12,
+    p: 10,
+    code: 9,
+};
+const LINE_SPACING = {
+    h1: 8,
+    h2: 6,
+    h3: 5,
+    p: 4,
+    code: 3,
+};
+const MARGIN = 15; // mm
+const CODE_BG_COLOR = '#f0f0f0'; // Light gray for code blocks
 
-// Generate Markdown content
+// Generate Markdown content (No changes needed here)
 export function generateMarkdownContent(problemData: GenerateSystemDesignProblemOutput): string {
-  let markdown = `# System Design Problem: ${problemData.generatedProblemType || 'Generated Problem'}
-`;
+  let markdown = `# System Design Problem: ${problemData.generatedProblemType || 'Generated Problem'}`;
 
   if (problemData.generatedProblemType) {
-    markdown += `
-## System Design Focus
-**Problem Type:** ${problemData.generatedProblemType}
-`;
+    markdown += `\n\n## System Design Focus\n**Problem Type:** ${problemData.generatedProblemType}`;
   }
-
   if (problemData.problemStatement) {
-    markdown += `
-## Problem Statement
-${problemData.problemStatement}
-`;
+    markdown += `\n\n## Problem Statement\n${problemData.problemStatement}`;
   }
-
   if (problemData.scaleEstimates) {
-    markdown += `
-## Scale Estimates
-${problemData.scaleEstimates}
-`;
+    markdown += `\n\n## Scale Estimates\n${problemData.scaleEstimates}`;
   }
-
   if (problemData.solution) {
-    markdown += `
-## Solution
-${problemData.solution}
-`;
+    markdown += `\n\n## Solution\n${problemData.solution}`;
   }
-
   if (problemData.capacityPlanning) {
-    markdown += `
-## Capacity Planning
-${problemData.capacityPlanning}
-`;
+    markdown += `\n\n## Capacity Planning\n${problemData.capacityPlanning}`;
   }
-
   if (problemData.reasoning) {
-    markdown += `
-## Reasoning
-${problemData.reasoning}
-`;
+    markdown += `\n\n## Reasoning\n${problemData.reasoning}`;
   }
-
   if (problemData.keyConcepts) {
-    markdown += `
-## Key Concepts
-${problemData.keyConcepts}
-`;
+    markdown += `\n\n## Key Concepts\n${problemData.keyConcepts}`;
   }
-
   if (problemData.diagramDescription) {
-    markdown += `
-## Diagram Description
-${problemData.diagramDescription}
-`;
+    markdown += `\n\n## Diagram Description\n${problemData.diagramDescription}`;
   }
-
-  markdown += `
-## Diagram
-`;
+  markdown += `\n\n## Diagram\n`;
   if (problemData.diagramImageUri) {
-    markdown += `A diagram image was generated for this problem. Please refer to the application view or the provided image data URI if viewing this outside the application context.
-(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)
-`;
+    markdown += `A diagram image was generated for this problem. Please refer to the application view or the provided image data URI if viewing this outside the application context.\n(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
   } else {
-     markdown += `(No diagram image was generated for this problem)
-`;
+     markdown += `(No diagram image was generated for this problem)`;
   }
 
   return markdown.trim() + '\n';
 }
 
-// Generate Plain Text content
+
+// Generate Plain Text content (No changes needed here)
 export function generatePlainTextContent(problemData: GenerateSystemDesignProblemOutput): string {
+   // Helper function to strip Markdown for plain text
+  const stripMarkdownForTxt = (markdown: string | undefined | null): string => {
+    if (!markdown) return '';
+    let text = markdown;
+    // Basic headers -> add newline before
+    text = text.replace(/^#+\s+/gm, '\n');
+    // Bold/italic/strikethrough/etc.
+    text = text.replace(/(\*\*|__|\*|_|~~)(.*?)\1/g, '$2');
+    // Code blocks - keep content, add separators
+    text = text.replace(/```([\s\S]*?)```/g, (match, p1) => `\n---\nCODE BLOCK:\n${p1.trim()}\n---\n`);
+    // Inline code
+    text = text.replace(/`([^`]+)`/g, '$1');
+    // Links - keep text
+    text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    // Images - remove
+    text = text.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
+    // Horizontal rules
+    text = text.replace(/^(---|___|\*\*\*)\s*$/gm, '\n--------------------\n');
+    // Blockquotes - remove '>'
+    text = text.replace(/^>\s+/gm, '');
+    // Lists - basic conversion
+    text = text.replace(/^(\*|-|\d+\.)\s+/gm, ' - ');
+    // Collapse multiple blank lines
+    text = text.replace(/\n{3,}/g, '\n\n');
+    // Trim whitespace
+    return text.trim();
+  };
+
   let text = `SYSTEM DESIGN PROBLEM: ${problemData.generatedProblemType || 'Generated Problem'}
 ========================================
 `;
 
   if (problemData.generatedProblemType) {
-    text += `
-SYSTEM DESIGN FOCUS
--------------------
-Problem Type: ${problemData.generatedProblemType}
-
-`;
+    text += `\nSYSTEM DESIGN FOCUS\n-------------------\nProblem Type: ${problemData.generatedProblemType}\n`;
   }
-
-  text += `PROBLEM STATEMENT
------------------
-${stripMarkdown(problemData.problemStatement)}
-
-`;
-
+  if (problemData.problemStatement) {
+    text += `\nPROBLEM STATEMENT\n-----------------\n${stripMarkdownForTxt(problemData.problemStatement)}\n`;
+  }
   if (problemData.scaleEstimates) {
-    text += `SCALE ESTIMATES
----------------
-${stripMarkdown(problemData.scaleEstimates)}
-
-`;
+    text += `\nSCALE ESTIMATES\n---------------\n${stripMarkdownForTxt(problemData.scaleEstimates)}\n`;
   }
-
   if (problemData.solution) {
-    text += `SOLUTION
---------
-${stripMarkdown(problemData.solution)}
-
-`;
+    text += `\nSOLUTION\n--------\n${stripMarkdownForTxt(problemData.solution)}\n`;
   }
-
   if (problemData.capacityPlanning) {
-    text += `CAPACITY PLANNING
------------------
-${stripMarkdown(problemData.capacityPlanning)}
-
-`;
+    text += `\nCAPACITY PLANNING\n-----------------\n${stripMarkdownForTxt(problemData.capacityPlanning)}\n`;
   }
-
   if (problemData.reasoning) {
-    text += `REASONING
----------
-${stripMarkdown(problemData.reasoning)}
-
-`;
+    text += `\nREASONING\n---------\n${stripMarkdownForTxt(problemData.reasoning)}\n`;
   }
-
   if (problemData.keyConcepts) {
-    text += `KEY CONCEPTS
-------------
-${stripMarkdown(problemData.keyConcepts)}
-
-`;
+    text += `\nKEY CONCEPTS\n------------\n${stripMarkdownForTxt(problemData.keyConcepts)}\n`;
   }
-
   if (problemData.diagramDescription) {
-    text += `DIAGRAM DESCRIPTION
--------------------
-${stripMarkdown(problemData.diagramDescription)}
-
-`;
+    text += `\nDIAGRAM DESCRIPTION\n-------------------\n${stripMarkdownForTxt(problemData.diagramDescription)}\n`;
   }
-
   if (problemData.diagramImageUri) {
-    text += `DIAGRAM
--------
-A diagram image was generated for this problem. Please refer to the application view.
-(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)
-
-`;
+    text += `\nDIAGRAM\n-------\nA diagram image was generated. Refer to the application view.\n(Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
   } else {
-     text += `DIAGRAM
--------
-(No diagram image was generated for this problem)
-
-`;
+     text += `\nDIAGRAM\n-------\n(No diagram image was generated)`;
   }
 
   return text;
 }
 
 
-// Generate PDF content using jsPDF (Text-based approach)
+// Generate PDF content using jsPDF with improved Markdown handling
 export function generatePdfContent(problemData: GenerateSystemDesignProblemOutput, filename: string): void {
   const doc = new jsPDF();
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
-  const margin = 15; // mm
-  const usableWidth = pageWidth - 2 * margin;
-  let y = margin; // Start Y position
+  const usableWidth = pageWidth - 2 * MARGIN;
+  let y = MARGIN; // Current Y position
 
-  const addText = (text: string, size: number, style: 'bold' | 'normal', spacingAfter: number = 5): void => {
-      if (y + size / 72 * 25.4 + spacingAfter > pageHeight - margin) { // Check if text fits, rough conversion points to mm
-          doc.addPage();
-          y = margin;
-      }
-      doc.setFontSize(size);
-      doc.setFont(undefined, style);
-      const splitText = doc.splitTextToSize(stripMarkdown(text), usableWidth);
-      doc.text(splitText, margin, y);
-      y += (splitText.length * size * 0.352778) + spacingAfter; // Move Y down (line height approx size * 0.35 mm) + spacing
+  const checkAddPage = (neededHeight: number): void => {
+    if (y + neededHeight > pageHeight - MARGIN) {
+      doc.addPage();
+      y = MARGIN;
+    }
   };
 
-  addText(`System Design Problem: ${problemData.generatedProblemType || 'Generated Problem'}`, 18, 'bold', 10);
+  // Basic Markdown Parser for PDF generation
+  const renderMarkdown = (markdown: string | undefined | null): void => {
+    if (!markdown) return;
 
+    const lines = markdown.split('\n');
+    let inCodeBlock = false;
+
+    for (const line of lines) {
+      // --- Code Blocks ---
+      if (line.trim().startsWith('```')) {
+          inCodeBlock = !inCodeBlock;
+          if (!inCodeBlock) { // End of code block
+             y += LINE_SPACING.code; // Add a bit of space after code block
+          } else { // Start of code block
+              checkAddPage(FONT_SIZES.code * 0.35 + LINE_SPACING.code); // Check space for first line + spacing
+              // Draw background rectangle - slightly complex with page breaks
+              // For simplicity, we'll just change font for now.
+              doc.setFont('courier', 'normal'); // Use a monospace font
+              doc.setFontSize(FONT_SIZES.code);
+          }
+          continue; // Skip the ``` line itself
+      }
+
+      if (inCodeBlock) {
+          checkAddPage(FONT_SIZES.code * 0.35);
+          // Handle potential line wrapping within code block
+          const codeLines = doc.splitTextToSize(line, usableWidth);
+          doc.text(codeLines, MARGIN, y);
+          y += codeLines.length * FONT_SIZES.code * 0.35; // Approximate line height in mm
+          continue;
+      }
+
+      // --- Headers ---
+      if (line.startsWith('# ')) { // H1
+        checkAddPage(FONT_SIZES.h1 * 0.35 + LINE_SPACING.h1);
+        doc.setFontSize(FONT_SIZES.h1);
+        doc.setFont(undefined, 'bold');
+        const text = line.substring(2);
+        const splitText = doc.splitTextToSize(text, usableWidth);
+        doc.text(splitText, MARGIN, y);
+        y += (splitText.length * FONT_SIZES.h1 * 0.35) + LINE_SPACING.h1;
+      } else if (line.startsWith('## ')) { // H2
+        checkAddPage(FONT_SIZES.h2 * 0.35 + LINE_SPACING.h2);
+        doc.setFontSize(FONT_SIZES.h2);
+        doc.setFont(undefined, 'bold');
+        const text = line.substring(3);
+        const splitText = doc.splitTextToSize(text, usableWidth);
+        doc.text(splitText, MARGIN, y);
+        y += (splitText.length * FONT_SIZES.h2 * 0.35) + LINE_SPACING.h2;
+      } else if (line.startsWith('### ')) { // H3
+        checkAddPage(FONT_SIZES.h3 * 0.35 + LINE_SPACING.h3);
+        doc.setFontSize(FONT_SIZES.h3);
+        doc.setFont(undefined, 'bold');
+        const text = line.substring(4);
+        const splitText = doc.splitTextToSize(text, usableWidth);
+        doc.text(splitText, MARGIN, y);
+        y += (splitText.length * FONT_SIZES.h3 * 0.35) + LINE_SPACING.h3;
+      // --- Lists ---
+      } else if (line.trim().startsWith('* ') || line.trim().startsWith('- ') || line.trim().match(/^(\d+\.)\s/)) {
+        checkAddPage(FONT_SIZES.p * 0.35);
+        doc.setFontSize(FONT_SIZES.p);
+        doc.setFont(undefined, 'normal');
+        const itemText = line.replace(/^(\*|-|\d+\.)\s+/, '');
+        const prefix = line.trim().startsWith('*') || line.trim().startsWith('-') ? '• ' : '  '; // Indent numbered lists slightly more maybe
+        const splitText = doc.splitTextToSize(itemText, usableWidth - 5); // Indent list item text
+        doc.text(prefix + splitText[0], MARGIN, y);
+        if (splitText.length > 1) {
+             doc.text(splitText.slice(1), MARGIN + 5, y + FONT_SIZES.p * 0.35); // Add subsequent lines indented
+        }
+        y += splitText.length * FONT_SIZES.p * 0.35;
+      // --- Paragraphs (and catch-all) ---
+      } else {
+        // Treat empty lines as paragraph breaks
+        if (line.trim() === '') {
+            y += LINE_SPACING.p / 2; // Add smaller spacing for blank lines
+            continue;
+        }
+        checkAddPage(FONT_SIZES.p * 0.35 + LINE_SPACING.p);
+        doc.setFontSize(FONT_SIZES.p);
+        doc.setFont(undefined, 'normal');
+        // Basic bold/italic handling - limitations apply
+        // This is very basic and won't handle nested or complex cases well.
+        const text = line.replace(/(\*\*|__)(.*?)\1/g, '$2'); // Crude bold removal for length calculation
+        // TODO: jsPDF doesn't easily support inline style changes. Might need advanced processing or accept limitations.
+        const splitText = doc.splitTextToSize(line.replace(/(\*\*|__)(.*?)\1/g, '$2'), usableWidth); // Render without markdown markers for now
+        doc.text(splitText, MARGIN, y);
+        y += (splitText.length * FONT_SIZES.p * 0.35) + LINE_SPACING.p;
+      }
+    }
+     // Reset font after processing markdown section
+     doc.setFont(undefined, 'normal');
+  };
+
+  // --- Document Title ---
+  checkAddPage(FONT_SIZES.h1 * 0.35 + LINE_SPACING.h1);
+  doc.setFontSize(FONT_SIZES.h1);
+  doc.setFont(undefined, 'bold');
+  doc.text(`System Design Problem: ${problemData.generatedProblemType || 'Generated Problem'}`, MARGIN, y);
+  y += FONT_SIZES.h1 * 0.35 + LINE_SPACING.h1;
+
+  // --- Render Sections ---
   if (problemData.generatedProblemType) {
-      addText('System Design Focus', 14, 'bold');
-      addText(`Problem Type: ${problemData.generatedProblemType}`, 11, 'normal');
+     renderMarkdown(`## System Design Focus\n**Problem Type:** ${problemData.generatedProblemType}`);
   }
-
   if (problemData.problemStatement) {
-      addText('Problem Statement', 14, 'bold');
-      addText(problemData.problemStatement, 11, 'normal');
+     renderMarkdown(`## Problem Statement\n${problemData.problemStatement}`);
   }
-
-  if (problemData.scaleEstimates) {
-      addText('Scale Estimates', 14, 'bold');
-      // Attempt to keep markdown formatting for lists/code if simple
-      addText(problemData.scaleEstimates, 11, 'normal');
+   if (problemData.scaleEstimates) {
+     renderMarkdown(`## Scale Estimates\n${problemData.scaleEstimates}`);
   }
-
    if (problemData.solution) {
-      addText('Solution', 14, 'bold');
-       addText(problemData.solution, 11, 'normal');
-   }
-
-    if (problemData.capacityPlanning) {
-      addText('Capacity Planning', 14, 'bold');
-       addText(problemData.capacityPlanning, 11, 'normal');
-   }
-
+     renderMarkdown(`## Solution\n${problemData.solution}`);
+  }
+   if (problemData.capacityPlanning) {
+     renderMarkdown(`## Capacity Planning\n${problemData.capacityPlanning}`);
+  }
    if (problemData.reasoning) {
-      addText('Reasoning', 14, 'bold');
-      addText(problemData.reasoning, 11, 'normal');
+     renderMarkdown(`## Reasoning\n${problemData.reasoning}`);
   }
-
   if (problemData.keyConcepts) {
-      addText('Key Concepts', 14, 'bold');
-      addText(problemData.keyConcepts, 11, 'normal');
+     renderMarkdown(`## Key Concepts\n${problemData.keyConcepts}`);
+  }
+   if (problemData.diagramDescription) {
+     renderMarkdown(`## Diagram Description\n${problemData.diagramDescription}`);
   }
 
-  if (problemData.diagramDescription) {
-      addText('Diagram Description', 14, 'bold');
-      addText(problemData.diagramDescription, 11, 'normal');
-  }
-
-  addText('Diagram', 14, 'bold');
+  // --- Diagram Section ---
+  renderMarkdown('## Diagram');
+  checkAddPage(FONT_SIZES.p * 0.35);
+  doc.setFontSize(FONT_SIZES.p);
+  doc.setFont(undefined, 'normal');
   if (problemData.diagramImageUri) {
-      addText(`A diagram image was generated. Please refer to the application view. (Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`, 9, 'normal');
+      const diagText = `A diagram image was generated. Please refer to the application view.\n(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
+      const splitText = doc.splitTextToSize(diagText, usableWidth);
+      doc.text(splitText, MARGIN, y);
+      y += splitText.length * FONT_SIZES.p * 0.35;
+      // Note: Embedding the large base64 image directly into the PDF can make it huge.
+      // This text-based approach avoids that issue. For actual image embedding:
+      // try {
+      //   // Check if y position leaves enough space for the image
+      //   const imgHeight = 50; // Example desired height in mm
+      //   if (y + imgHeight > pageHeight - MARGIN) {
+      //     doc.addPage();
+      //     y = MARGIN;
+      //   }
+      //   doc.addImage(problemData.diagramImageUri, 'PNG', MARGIN, y, usableWidth, imgHeight);
+      //   y += imgHeight + 5; // Add space after image
+      // } catch (e) {
+      //   console.error("Error adding image to PDF:", e);
+      //   doc.text("Error embedding diagram image.", MARGIN, y);
+      //    y += FONT_SIZES.p * 0.35 + LINE_SPACING.p;
+      // }
   } else {
-     addText('(No diagram image was generated for this problem)', 9, 'normal');
+     doc.text('(No diagram image was generated for this problem)', MARGIN, y);
+     y += FONT_SIZES.p * 0.35;
   }
 
   doc.save(filename);
 }
+
+
+    
