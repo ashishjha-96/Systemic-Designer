@@ -31,71 +31,66 @@ function stripMarkdown(markdown: string): string {
 
 export function generateMarkdownContent(problemData: GenerateSystemDesignProblemOutput): string {
   let markdown = `# System Design Problem: ${problemData.generatedProblemType || 'Generated Problem'}
-
-`;
+`; // Main title
 
   if (problemData.generatedProblemType) {
-    markdown += `## System Design Focus
+    // Add a specific section for the problem type if it exists
+    markdown += `
+## System Design Focus
 **Problem Type:** ${problemData.generatedProblemType}
-
 `;
   }
 
-  markdown += `## Problem Statement
+  // Append content directly from problemData, assuming headers are included in the AI response
+  markdown += `
 ${problemData.problemStatement}
-
 `;
   
   if (problemData.scaleEstimates) {
-    markdown += `## Scale Estimates
+    markdown += `
 ${problemData.scaleEstimates}
-
 `;
   }
 
-  markdown += `## Solution
+  markdown += `
 ${problemData.solution}
-
 `;
 
   if (problemData.capacityPlanning) {
-    markdown += `## Capacity Planning
+    markdown += `
 ${problemData.capacityPlanning}
-
 `;
   }
   
-  markdown += `## Reasoning
+  markdown += `
 ${problemData.reasoning}
-
 `;
-  markdown += `## Key Concepts
-${problemData.keyConcepts}
-
-`;
+  markdown += `
+## Key Concepts
+${problemData.keyConcepts} 
+`; // Key concepts might not have a header from AI, so keep it
 
   if (problemData.diagramDescription) {
-    markdown += `## Diagram Description
-${problemData.diagramDescription}
-
-`;
+    markdown += `
+## Diagram Description 
+${problemData.diagramDescription} 
+`; // Diagram description might not have a header from AI
   }
 
-  // Note: The diagram image itself cannot be directly embedded in a portable way in markdown without hosting it.
+  // Handle Diagram section separately
+  markdown += `
+## Diagram
+`;
   if (problemData.diagramImageUri) {
-    markdown += `## Diagram
-A diagram image was generated for this problem. Please refer to the application view or the provided image data URI if viewing this outside the application context.
+    markdown += `A diagram image was generated for this problem. Please refer to the application view or the provided image data URI if viewing this outside the application context.
 (Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)
-
 `;
   } else {
-     markdown += `## Diagram
-(No diagram image was generated for this problem)
-
+     markdown += `(No diagram image was generated for this problem)
 `;
   }
 
-  return markdown;
+  return markdown.trim() + '\n'; // Ensure a single newline at the end
 }
 
 
