@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { supportedModels } from '@/lib/models'; // Import supported models
+// import { supportedModels } from '@/lib/models'; // Import supported models - REMOVED
 
 export const ProblemGenerationSchema = z.object({
   difficultyLevel: z.enum(['Easy', 'Medium', 'Hard']),
@@ -10,8 +10,7 @@ export const ProblemGenerationSchema = z.object({
       message: "Problem type, if provided, must be at least 3 characters long.",
     })
     .optional(), // Makes the field itself optional, allowing undefined if not submitted
-  modelName: z.enum(supportedModels) // Validate against the list of supported models
-    .default('googleai/gemini-2.0-flash'), // Set a default model
+  modelName: z.string().min(1, "AI Model must be selected"), // Validate as non-empty string
 });
 
 export type ProblemGenerationFormValues = z.infer<typeof ProblemGenerationSchema>;
