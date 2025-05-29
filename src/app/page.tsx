@@ -47,7 +47,8 @@ import {
   NotebookText, // Icon for Notion
   Pocket, // Icon for Pocket
 } from "lucide-react";
-import { generateMarkdownContent, generatePlainTextContent, generatePdfContent, exportToNotion, exportToPocket } from "@/lib/downloadUtils"; // Import download utils
+// Removed exportToNotion and exportToPocket, kept other utils
+import { generateMarkdownContent, generatePlainTextContent, generatePdfContent } from "@/lib/downloadUtils"; 
 
 export default function HomePage() {
   const [problemData, setProblemData] = useState<GenerateSystemDesignProblemOutput | null>(null);
@@ -190,24 +191,37 @@ export default function HomePage() {
 
     setIsExportingToNotion(true);
     try {
-      const result = await exportToNotion(problemData, notionApiKeyInput.trim(), notionPageIdInput.trim());
-      if (result.success) {
+      const apiResponse = await fetch('/api/export/notion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          problemData,
+          notionApiKey: notionApiKeyInput.trim(),
+          pageId: notionPageIdInput.trim(),
+        }),
+      });
+
+      const responseData = await apiResponse.json();
+
+      if (apiResponse.ok && responseData.success) {
         toast({
           title: "Export Successful!",
-          description: `Successfully exported to Notion. Page URL: ${result.pageUrl || 'N/A'}`,
+          description: `Successfully exported to Notion. Page URL: ${responseData.pageUrl || 'N/A'}`,
         });
       } else {
         toast({
           title: "Export Failed",
-          description: `Failed to export to Notion: ${result.error || "Unknown error"}`,
+          description: responseData.error || "An unknown error occurred while exporting to Notion.",
           variant: "destructive",
         });
       }
     } catch (e: any) {
-      console.error("Notion export error:", e);
+      console.error("Error calling /api/export/notion:", e);
       toast({
         title: "Export Error",
-        description: `An unexpected error occurred during Notion export: ${e.message || "Unknown error"}`,
+        description: e.message || "An unexpected error occurred while trying to export to Notion.",
         variant: "destructive",
       });
     } finally {
@@ -251,28 +265,40 @@ export default function HomePage() {
 
     setIsExportingToPocket(true);
     try {
-      const result = await exportToPocket(problemData, pocketConsumerKeyInput.trim(), pocketAccessTokenInput.trim());
-      if (result.success) {
+      const apiResponse = await fetch('/api/export/pocket', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          problemData,
+          pocketConsumerKey: pocketConsumerKeyInput.trim(),
+          pocketAccessToken: pocketAccessTokenInput.trim(),
+        }),
+      });
+
+      const responseData = await apiResponse.json();
+
+      if (apiResponse.ok && responseData.success) {
         toast({
           title: "Export Successful!",
-          description: "Successfully exported to Pocket.",
+          description: "Successfully exported to Pocket.", 
+          // Pocket API response might have item details in responseData.data, 
+          // but the API route currently returns the whole 'result' object from exportToPocket,
+          // so responseData itself is that result object.
         });
       } else {
-        let description = `Failed to export to Pocket: ${result.error || "Unknown error"}`;
-        if (result.errorDetails) {
-            description += ` Details: ${JSON.stringify(result.errorDetails)}`;
-        }
         toast({
           title: "Export Failed",
-          description,
+          description: `${responseData.error || "An unknown error occurred"}${responseData.details ? ' Details: ' + JSON.stringify(responseData.details) : ''}`.trim(),
           variant: "destructive",
         });
       }
     } catch (e: any) {
-      console.error("Pocket export error:", e);
+      console.error("Error calling /api/export/pocket:", e);
       toast({
         title: "Export Error",
-        description: `An unexpected error occurred during Pocket export: ${e.message || "Unknown error"}`,
+        description: e.message || "An unexpected error occurred while trying to export to Pocket.",
         variant: "destructive",
       });
     } finally {
