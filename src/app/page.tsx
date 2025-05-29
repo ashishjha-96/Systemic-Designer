@@ -34,13 +34,17 @@ import {
   FileCode, // Icon for Markdown
   FileDigit, // Icon for TXT
   FileX, // Icon for PDF
+  NotebookText, // Icon for Notion
+  Pocket, // Icon for Pocket
 } from "lucide-react";
-import { generateMarkdownContent, generatePlainTextContent, generatePdfContent } from "@/lib/downloadUtils"; // Import download utils
+import { generateMarkdownContent, generatePlainTextContent, generatePdfContent, exportToNotion, exportToPocket } from "@/lib/downloadUtils"; // Import download utils
 
 export default function HomePage() {
   const [problemData, setProblemData] = useState<GenerateSystemDesignProblemOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false); // State for download loading
+  const [isExportingToNotion, setIsExportingToNotion] = useState(false);
+  const [isExportingToPocket, setIsExportingToPocket] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -138,6 +142,109 @@ export default function HomePage() {
     }
   };
 
+  const handleExportToNotion = async () => {
+    if (!problemData) {
+      toast({
+        title: "No Problem Data",
+        description: "Please generate a problem before exporting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const notionApiKey = window.prompt("Enter your Notion API Key:");
+    if (!notionApiKey) {
+      toast({ title: "Export Canceled", description: "Notion API Key was not provided." });
+      return;
+    }
+
+    const notionPageId = window.prompt("Enter your Notion Parent Page ID:");
+    if (!notionPageId) {
+      toast({ title: "Export Canceled", description: "Notion Parent Page ID was not provided." });
+      return;
+    }
+
+    setIsExportingToNotion(true);
+    try {
+      const result = await exportToNotion(problemData, notionApiKey, notionPageId);
+      if (result.success) {
+        toast({
+          title: "Export Successful!",
+          description: `Successfully exported to Notion. Page URL: ${result.pageUrl || 'N/A'}`,
+          // Consider adding an action to open the URL if possible and makes sense
+          // actions: result.pageUrl ? [<a key="open-notion" href={result.pageUrl} target="_blank" rel="noopener noreferrer">Open Page</a>] : [],
+        });
+      } else {
+        toast({
+          title: "Export Failed",
+          description: `Failed to export to Notion: ${result.error || "Unknown error"}`,
+          variant: "destructive",
+        });
+      }
+    } catch (e: any) {
+      console.error("Notion export error:", e);
+      toast({
+        title: "Export Error",
+        description: `An unexpected error occurred during Notion export: ${e.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingToNotion(false);
+    }
+  };
+
+  const handleExportToPocket = async () => {
+    if (!problemData) {
+      toast({
+        title: "No Problem Data",
+        description: "Please generate a problem before exporting to Pocket.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const pocketConsumerKey = window.prompt("Enter your Pocket Consumer Key:");
+    if (!pocketConsumerKey) {
+      toast({ title: "Export Canceled", description: "Pocket Consumer Key was not provided." });
+      return;
+    }
+
+    const pocketAccessToken = window.prompt("Enter your Pocket Access Token:");
+    if (!pocketAccessToken) {
+      toast({ title: "Export Canceled", description: "Pocket Access Token was not provided." });
+      return;
+    }
+
+    setIsExportingToPocket(true);
+    try {
+      const result = await exportToPocket(problemData, pocketConsumerKey, pocketAccessToken);
+      if (result.success) {
+        toast({
+          title: "Export Successful!",
+          description: "Successfully exported to Pocket.",
+        });
+      } else {
+        let description = `Failed to export to Pocket: ${result.error || "Unknown error"}`;
+        if (result.errorDetails) {
+            description += ` Details: ${JSON.stringify(result.errorDetails)}`;
+        }
+        toast({
+          title: "Export Failed",
+          description,
+          variant: "destructive",
+        });
+      }
+    } catch (e: any) {
+      console.error("Pocket export error:", e);
+      toast({
+        title: "Export Error",
+        description: `An unexpected error occurred during Pocket export: ${e.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingToPocket(false);
+    }
+  };
 
   const sections = problemData ? [
     { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem, problemType: problemData.generatedProblemType, isMarkdown: true }, // Assume markdown
@@ -209,24 +316,30 @@ export default function HomePage() {
                     <TooltipProvider>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" disabled={isDownloading}>
-                             {isDownloading ? (
-                                <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" /> // Simple spinner
+                            <Button variant="outline" disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                             {(isDownloading || isExportingToNotion || isExportingToPocket) ? (
+                                <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
                              ) : (
                                 <Download className="mr-2 h-4 w-4" />
                              )}
-                             {isDownloading ? 'Downloading...' : 'Download'}
+                             {isDownloading ? 'Downloading...' : (isExportingToNotion || isExportingToPocket) ? 'Exporting...' : 'Download / Export'}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleDownload('md')} disabled={isDownloading}>
+                            <DropdownMenuItem onSelect={() => handleDownload('md')} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
                                 <FileCode className="mr-2 h-4 w-4" /> Markdown (.md)
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDownload('txt')} disabled={isDownloading}>
+                            <DropdownMenuItem onSelect={() => handleDownload('txt')} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
                                 <FileDigit className="mr-2 h-4 w-4" /> Plain Text (.txt)
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDownload('pdf')} disabled={isDownloading}>
+                            <DropdownMenuItem onSelect={() => handleDownload('pdf')} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
                                 <FileX className="mr-2 h-4 w-4" /> PDF (.pdf)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleExportToNotion} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                                <NotebookText className="mr-2 h-4 w-4" /> Export to Notion
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleExportToPocket} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                                <Pocket className="mr-2 h-4 w-4" /> Export to Pocket
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                         </DropdownMenu>

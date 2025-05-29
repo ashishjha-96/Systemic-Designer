@@ -302,5 +302,429 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
   doc.save(filename);
 }
 
+// --- Notion Export ---
 
+// Simplified Notion Block Types
+interface NotionRichText {
+  type: 'text';
+  text: {
+    content: string;
+    link?: { url: string };
+  };
+  annotations?: {
+    bold?: boolean;
+    italic?: boolean;
+    strikethrough?: boolean;
+    underline?: boolean;
+    code?: boolean;
+    color?: string;
+  };
+}
+
+interface NotionBlockBase {
+  object: 'block';
+  type:
+    | 'paragraph'
+    | 'heading_1'
+    | 'heading_2'
+    | 'heading_3'
+    | 'bulleted_list_item'
+    | 'numbered_list_item'
+    | 'code'
+    | 'image'
+    | 'divider';
+}
+
+interface NotionParagraphBlock extends NotionBlockBase { type: 'paragraph'; paragraph: { rich_text: NotionRichText[] }; }
+interface NotionHeading1Block extends NotionBlockBase { type: 'heading_1'; heading_1: { rich_text: NotionRichText[] }; }
+interface NotionHeading2Block extends NotionBlockBase { type: 'heading_2'; heading_2: { rich_text: NotionRichText[] }; }
+interface NotionHeading3Block extends NotionBlockBase { type: 'heading_3'; heading_3: { rich_text: NotionRichText[] }; }
+interface NotionBulletedListItemBlock extends NotionBlockBase { type: 'bulleted_list_item'; bulleted_list_item: { rich_text: NotionRichText[] }; }
+interface NotionNumberedListItemBlock extends NotionBlockBase { type: 'numbered_list_item'; numbered_list_item: { rich_text: NotionRichText[] }; }
+interface NotionCodeBlock extends NotionBlockBase { type: 'code'; code: { rich_text: NotionRichText[]; language: string }; }
+interface NotionImageBlock extends NotionBlockBase {
+  type: 'image';
+  image: {
+    type: 'external' | 'file';
+    external?: { url: string };
+    file?: { url: string; expiry_time?: string };
+    caption?: NotionRichText[];
+  };
+}
+interface NotionDividerBlock extends NotionBlockBase { type: 'divider'; divider: {}; } // Divider has an empty object for its content
+
+type NotionBlock = NotionParagraphBlock | NotionHeading1Block | NotionHeading2Block | NotionHeading3Block | NotionBulletedListItemBlock | NotionNumberedListItemBlock | NotionCodeBlock | NotionImageBlock | NotionDividerBlock;
+
+
+// Helper to create a rich text array with basic markdown support
+function createRichTextArray(content: string): NotionRichText[] {
+    // Basic bold/italic handling (simplified)
+    // This doesn't handle nested or complex markdown perfectly.
+    const parts = content.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g).filter(part => part);
+    return parts.map(part => {
+        const richText: NotionRichText = { type: 'text', text: { content: part } };
+        if (part.startsWith('**') && part.endsWith('**')) {
+            richText.text.content = part.substring(2, part.length - 2);
+            richText.annotations = { bold: true };
+        } else if (part.startsWith('*') && part.endsWith('*')) {
+            richText.text.content = part.substring(1, part.length - 1);
+            richText.annotations = { italic: true };
+        } else if (part.startsWith('`') && part.endsWith('`')) {
+            richText.text.content = part.substring(1, part.length - 1);
+            richText.annotations = { code: true };
+        }
+        return richText;
+    }).filter(rt => rt.text.content.length > 0);
+}
+
+
+// Helper to create a generic block with rich text content
+function createRichTextBlock(type: NotionBlock['type'], content: string): NotionBlock | null {
+    if (!content || content.trim() === "") return null;
+    const rich_text = createRichTextArray(content);
+    if (rich_text.length === 0) return null;
+
+    switch (type) {
+        case 'paragraph': return { object: 'block', type, paragraph: { rich_text } } as NotionParagraphBlock;
+        case 'heading_1': return { object: 'block', type, heading_1: { rich_text } } as NotionHeading1Block;
+        case 'heading_2': return { object: 'block', type, heading_2: { rich_text } } as NotionHeading2Block;
+        case 'heading_3': return { object: 'block', type, heading_3: { rich_text } } as NotionHeading3Block;
+        case 'bulleted_list_item': return { object: 'block', type, bulleted_list_item: { rich_text } } as NotionBulletedListItemBlock;
+        default: return null; // Only handles types that directly use rich_text array
+    }
+}
+
+// Helper to create a code block
+function createCodeBlock(code: string, language: string = 'plaintext'): NotionCodeBlock {
+  return {
+    object: 'block',
+    type: 'code',
+    code: {
+      rich_text: [{ type: 'text', text: { content: code } }], // Code blocks in Notion typically don't have internal annotations
+      language,
+    },
+  };
+}
+
+// Helper to parse markdown-like string into Notion blocks
+function parseMarkdownToNotionBlocks(markdown: string | undefined | null, defaultLanguage: string = 'markdown'): NotionBlock[] {
+  if (!markdown) return [];
+  const blocks: NotionBlock[] = [];
+  const lines = markdown.split('\n');
+  let inCodeBlock = false;
+  let codeContent = '';
+  let codeLang = defaultLanguage;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.trim().startsWith('```')) {
+      if (inCodeBlock) {
+        blocks.push(createCodeBlock(codeContent.trim(), codeLang));
+        codeContent = '';
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+        codeLang = line.substring(3).trim().toLowerCase() || defaultLanguage;
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeContent += line + '\n';
+      continue;
+    }
     
+    let block: NotionBlock | null = null;
+    if (line.startsWith('# ')) {
+        block = createRichTextBlock('heading_1', line.substring(2));
+    } else if (line.startsWith('## ')) {
+        block = createRichTextBlock('heading_2', line.substring(3));
+    } else if (line.startsWith('### ')) {
+        block = createRichTextBlock('heading_3', line.substring(4));
+    } else if (line.startsWith('* ') || line.startsWith('- ')) {
+        // Handle multi-line list items by checking subsequent lines
+        let listItemContent = line.substring(2);
+        while (i + 1 < lines.length && (lines[i+1].startsWith('  ') || lines[i+1].trim() === '')) {
+            // If next line is indented or blank, it's part of the current list item or a break.
+            // For simplicity, just append if indented. Blank lines will break.
+            if (lines[i+1].startsWith('  ')) {
+                 listItemContent += '\n' + lines[i+1].trimStart();
+                 i++;
+            } else {
+                break; // Stop if it's a blank line that's not just indentation.
+            }
+        }
+        block = createRichTextBlock('bulleted_list_item', listItemContent);
+    } else if (line.trim() !== '') {
+        // Handle multi-line paragraphs
+        let paragraphContent = line;
+        while (i + 1 < lines.length && lines[i+1].trim() !== '' && !/^(# |## |### |\* |- |```)/.test(lines[i+1])) {
+            paragraphContent += '\n' + lines[i+1];
+            i++;
+        }
+        block = createRichTextBlock('paragraph', paragraphContent);
+    }
+
+    if (block) {
+        blocks.push(block);
+    }
+  }
+  if (inCodeBlock && codeContent.trim() !== '') { // Handle unterminated code block
+    blocks.push(createCodeBlock(codeContent.trim(), codeLang));
+  }
+  return blocks.filter(b => b !== null);
+}
+
+
+export async function exportToNotion(
+  problemData: GenerateSystemDesignProblemOutput,
+  notionApiKey: string,
+  pageId: string // This is the parent page ID
+): Promise<{ success: boolean; error?: string; data?: any; pageUrl?: string }> {
+  if (!notionApiKey || !pageId) {
+    return { success: false, error: "Notion API Key and Parent Page ID are required." };
+  }
+
+  const pageTitle = `System Design: ${problemData.generatedProblemType || 'Generated Problem'}`;
+  const children: NotionBlock[] = [];
+
+  // Page Title (as H1, will be the first block in the page content)
+  const titleBlock = createRichTextBlock('heading_1', pageTitle);
+  if (titleBlock) children.push(titleBlock);
+
+
+  if (problemData.generatedProblemType) {
+    const focusTitle = createRichTextBlock('heading_2', "System Design Focus");
+    if (focusTitle) children.push(focusTitle);
+    const focusContent = createRichTextBlock('paragraph', `Problem Type: ${problemData.generatedProblemType}`);
+    if (focusContent) children.push(focusContent);
+  }
+
+  const sections: { title: string; content?: string | null; isKeyConcepts?: boolean }[] = [
+    { title: "Problem Statement", content: problemData.problemStatement },
+    { title: "Scale Estimates", content: problemData.scaleEstimates },
+    { title: "Solution", content: problemData.solution },
+    { title: "Capacity Planning", content: problemData.capacityPlanning },
+    { title: "Reasoning", content: problemData.reasoning },
+    { title: "Key Concepts", content: problemData.keyConcepts, isKeyConcepts: true },
+    { title: "Diagram Description", content: problemData.diagramDescription },
+  ];
+
+  for (const section of sections) {
+    if (section.content && section.content.trim() !== "") {
+      const headerBlock = createRichTextBlock('heading_2', section.title);
+      if (headerBlock) children.push(headerBlock);
+
+      if (section.isKeyConcepts) {
+        const concepts = section.content.split(/[\n,]/).map(c => c.trim()).filter(c => c);
+        concepts.forEach(concept => {
+            const item = createRichTextBlock('bulleted_list_item', concept);
+            if (item) children.push(item);
+        });
+      } else {
+         children.push(...parseMarkdownToNotionBlocks(section.content));
+      }
+    }
+  }
+
+  if (problemData.diagramImageUri) {
+    const diagramTitle = createRichTextBlock('heading_2', "Diagram");
+    if (diagramTitle) children.push(diagramTitle);
+    
+    // Notion API for images requires a public URL. Data URIs are not directly embeddable as images.
+    // We'll provide a link to the data URI.
+    const dataUriMessage = "A diagram was generated as a Data URI. Notion cannot directly embed this as an image. You might need to copy the link/text and open it in a browser or save it as a file.";
+    const explanationBlock = createRichTextBlock('paragraph', dataUriMessage);
+    if (explanationBlock) children.push(explanationBlock);
+
+    // Create a code block for the (potentially very long) data URI for easier copying.
+    // Truncate if extremely long for the rich text part, but the code block will have the full URI.
+    const shortDataUri = problemData.diagramImageUri.substring(0, 200) + (problemData.diagramImageUri.length > 200 ? "..." : "");
+    const linkBlock = createCodeBlock(problemData.diagramImageUri, 'text');
+    children.push(linkBlock);
+
+  } else {
+    const diagramTitle = createRichTextBlock('heading_2', "Diagram");
+    if (diagramTitle) children.push(diagramTitle);
+    const noDiagramText = createRichTextBlock('paragraph', "(No diagram image was generated for this problem)");
+    if (noDiagramText) children.push(noDiagramText);
+  }
+  
+  children.push({ object: 'block', type: 'divider', divider: {} } as NotionDividerBlock);
+
+
+  const notionApiUrl = 'https://api.notion.com/v1/pages';
+  const body = {
+    parent: { page_id: pageId },
+    properties: {
+      title: [ 
+        {
+          type: 'text',
+          text: { content: pageTitle },
+        },
+      ],
+    },
+    children: children.filter(c => c !== null), 
+  };
+
+  try {
+    const response = await fetch(notionApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${notionApiKey}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const responseData = await response.json(); // Attempt to parse JSON regardless of response.ok
+
+    if (!response.ok) {
+      console.error('Notion API Error:', responseData);
+      return { success: false, error: `Notion API Error: ${responseData.message || response.statusText}` };
+    }
+    
+    // Assuming responseData for success includes an 'url' field for the new page
+    const pageUrl = responseData.url || `https://www.notion.so/${responseData.id.replace(/-/g, '')}`;
+
+    return { success: true, data: responseData, pageUrl };
+
+  } catch (error: any) {
+    console.error('Failed to export to Notion:', error);
+    return { success: false, error: error.message || 'An unknown error occurred during Notion export.' };
+  }
+}
+
+// --- Pocket Export ---
+
+function sanitizeHtml(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+    .replace(/\n/g, "<br />"); // Convert newlines to <br> for HTML
+}
+
+export async function exportToPocket(
+  problemData: GenerateSystemDesignProblemOutput,
+  pocketConsumerKey: string,
+  pocketAccessToken: string
+): Promise<{ success: boolean; error?: string; data?: any; errorDetails?: any }> {
+  if (!pocketConsumerKey || !pocketAccessToken) {
+    return { success: false, error: "Pocket Consumer Key and Access Token are required." };
+  }
+
+  const title = problemData.generatedProblemType || problemData.problemStatement?.substring(0, 100) || "System Design Problem";
+  
+  // Construct HTML content
+  let htmlContent = `<html><head><meta charset="UTF-8"><title>${sanitizeHtml(title)}</title></head><body>`;
+  htmlContent += `<h1>System Design Problem: ${sanitizeHtml(problemData.generatedProblemType)}</h1>`;
+  
+  if (problemData.problemStatement) {
+    htmlContent += `<h2>Problem Statement</h2><p>${sanitizeHtml(problemData.problemStatement)}</p>`;
+  }
+  if (problemData.scaleEstimates) {
+    htmlContent += `<h2>Scale Estimates</h2><p>${sanitizeHtml(problemData.scaleEstimates)}</p>`;
+  }
+  if (problemData.solution) {
+    htmlContent += `<h2>Solution</h2><p>${sanitizeHtml(problemData.solution)}</p>`;
+  }
+  if (problemData.capacityPlanning) {
+    htmlContent += `<h2>Capacity Planning</h2><p>${sanitizeHtml(problemData.capacityPlanning)}</p>`;
+  }
+  if (problemData.reasoning) {
+    htmlContent += `<h2>Reasoning</h2><p>${sanitizeHtml(problemData.reasoning)}</p>`;
+  }
+  if (problemData.keyConcepts) {
+    // Assuming keyConcepts is a string, potentially comma or newline separated.
+    // If it's an array in your actual data structure, adjust accordingly.
+    const concepts = typeof problemData.keyConcepts === 'string' 
+      ? problemData.keyConcepts.split(/[,;\n]/).map(c => c.trim()).filter(c => c)
+      : Array.isArray(problemData.keyConcepts) 
+        ? problemData.keyConcepts.map(c => String(c).trim()).filter(c => c) 
+        : [];
+    if (concepts.length > 0) {
+        htmlContent += `<h2>Key Concepts</h2><ul>${concepts.map(c => `<li>${sanitizeHtml(c)}</li>`).join('')}</ul>`;
+    }
+  }
+   if (problemData.diagramDescription) {
+    htmlContent += `<h2>Diagram Description</h2><p>${sanitizeHtml(problemData.diagramDescription)}</p>`;
+  }
+  if (problemData.diagramImageUri) {
+    htmlContent += `<h2>Diagram</h2><p>A diagram image was generated. Due to Pocket API limitations, the image cannot be embedded directly if this content is sent as a data URI. Please refer to the application for the visual diagram.</p><p>(Diagram URI starts with: ${sanitizeHtml(problemData.diagramImageUri.substring(0,100))}...)</p>`;
+  }
+  htmlContent += '</body></html>';
+
+  const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+
+  // The data URI can be very long. Pocket might have a URL length limit.
+  // If data URI is too long, it's likely to fail.
+  // A typical limit for URLs is around 2000 characters. Data URIs can easily exceed this.
+  if (dataUri.length > 8000) { // Pocket's limit seems to be higher, but let's be cautious. Some sources say 8KB-10KB.
+    console.warn("Data URI for Pocket is very long:", dataUri.length, "characters. This might exceed Pocket's URL length limit.");
+    // Optionally, return an error here or try sending a truncated version / just a link to the app.
+    // For this task, we'll still attempt to send it.
+  }
+  
+  const pocketApiUrl = 'https://getpocket.com/v3/add';
+  const requestBody = {
+    url: dataUri,
+    title: title,
+    consumer_key: pocketConsumerKey,
+    access_token: pocketAccessToken,
+    tags: typeof problemData.keyConcepts === 'string' 
+          ? problemData.keyConcepts.split(/[,;\n]/).map(c => c.trim()).filter(c => c).join(',') 
+          : (Array.isArray(problemData.keyConcepts) ? problemData.keyConcepts.join(',') : undefined),
+  };
+
+  try {
+    const response = await fetch(pocketApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Accept': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorCode = response.headers.get('X-Error-Code');
+      const errorMsgHeader = response.headers.get('X-Error');
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: "Failed to parse error response from Pocket." };
+      }
+      console.error('Pocket API Error:', {
+        status: response.status,
+        errorCode,
+        errorMsgHeader,
+        errorBody: errorData,
+      });
+      return { 
+        success: false, 
+        error: `Pocket API Error: ${errorMsgHeader || response.statusText} (Code: ${errorCode || 'N/A'})`,
+        errorDetails: errorData
+      };
+    }
+
+    const responseData = await response.json();
+    // Pocket's add API returns the item object on success
+    if (responseData && responseData.item) {
+      return { success: true, data: responseData.item };
+    } else {
+      // This case should ideally not happen if response.ok is true and API is consistent
+      return { success: false, error: "Pocket API returned success status but no item data.", errorDetails: responseData };
+    }
+
+  } catch (error: any) {
+    console.error('Failed to export to Pocket:', error);
+    return { success: false, error: error.message || 'An unknown error occurred during Pocket export.' };
+  }
+}
