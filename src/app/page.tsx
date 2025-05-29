@@ -19,7 +19,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TooltipProvider } from "@/components/ui/tooltip"; // Removed unused Tooltip components
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TooltipProvider } from "@/components/ui/tooltip"; 
 import {
   FileText,
   Lightbulb,
@@ -45,6 +55,12 @@ export default function HomePage() {
   const [isDownloading, setIsDownloading] = useState(false); // State for download loading
   const [isExportingToNotion, setIsExportingToNotion] = useState(false);
   const [isExportingToPocket, setIsExportingToPocket] = useState(false);
+  const [showNotionModal, setShowNotionModal] = useState(false);
+  const [notionApiKeyInput, setNotionApiKeyInput] = useState("");
+  const [notionPageIdInput, setNotionPageIdInput] = useState("");
+  const [showPocketModal, setShowPocketModal] = useState(false);
+  const [pocketConsumerKeyInput, setPocketConsumerKeyInput] = useState("");
+  const [pocketAccessTokenInput, setPocketAccessTokenInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -151,28 +167,34 @@ export default function HomePage() {
       });
       return;
     }
+    // Reset input fields when opening the modal
+    setNotionApiKeyInput("");
+    setNotionPageIdInput("");
+    setShowNotionModal(true);
+  };
 
-    const notionApiKey = window.prompt("Enter your Notion API Key:");
-    if (!notionApiKey) {
-      toast({ title: "Export Canceled", description: "Notion API Key was not provided." });
+  const submitNotionExport = async () => {
+    if (!problemData) { // Should ideally not happen if modal is opened after problemData check
+      toast({ title: "Error", description: "No problem data available for export.", variant: "destructive" });
+      setShowNotionModal(false);
       return;
     }
-
-    const notionPageId = window.prompt("Enter your Notion Parent Page ID:");
-    if (!notionPageId) {
-      toast({ title: "Export Canceled", description: "Notion Parent Page ID was not provided." });
+    if (!notionApiKeyInput.trim() || !notionPageIdInput.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Notion API Key and Parent Page ID are required.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsExportingToNotion(true);
     try {
-      const result = await exportToNotion(problemData, notionApiKey, notionPageId);
+      const result = await exportToNotion(problemData, notionApiKeyInput.trim(), notionPageIdInput.trim());
       if (result.success) {
         toast({
           title: "Export Successful!",
           description: `Successfully exported to Notion. Page URL: ${result.pageUrl || 'N/A'}`,
-          // Consider adding an action to open the URL if possible and makes sense
-          // actions: result.pageUrl ? [<a key="open-notion" href={result.pageUrl} target="_blank" rel="noopener noreferrer">Open Page</a>] : [],
         });
       } else {
         toast({
@@ -190,6 +212,10 @@ export default function HomePage() {
       });
     } finally {
       setIsExportingToNotion(false);
+      setShowNotionModal(false);
+      // Optionally clear fields after attempt, or let them persist for next try
+      // setNotionApiKeyInput(""); 
+      // setNotionPageIdInput("");
     }
   };
 
@@ -202,22 +228,30 @@ export default function HomePage() {
       });
       return;
     }
+    // Reset input fields when opening the modal
+    setPocketConsumerKeyInput("");
+    setPocketAccessTokenInput("");
+    setShowPocketModal(true);
+  };
 
-    const pocketConsumerKey = window.prompt("Enter your Pocket Consumer Key:");
-    if (!pocketConsumerKey) {
-      toast({ title: "Export Canceled", description: "Pocket Consumer Key was not provided." });
+  const submitPocketExport = async () => {
+    if (!problemData) { // Should ideally not happen
+      toast({ title: "Error", description: "No problem data available for Pocket export.", variant: "destructive" });
+      setShowPocketModal(false);
       return;
     }
-
-    const pocketAccessToken = window.prompt("Enter your Pocket Access Token:");
-    if (!pocketAccessToken) {
-      toast({ title: "Export Canceled", description: "Pocket Access Token was not provided." });
+    if (!pocketConsumerKeyInput.trim() || !pocketAccessTokenInput.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Pocket Consumer Key and Access Token are required.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsExportingToPocket(true);
     try {
-      const result = await exportToPocket(problemData, pocketConsumerKey, pocketAccessToken);
+      const result = await exportToPocket(problemData, pocketConsumerKeyInput.trim(), pocketAccessTokenInput.trim());
       if (result.success) {
         toast({
           title: "Export Successful!",
@@ -243,6 +277,10 @@ export default function HomePage() {
       });
     } finally {
       setIsExportingToPocket(false);
+      setShowPocketModal(false);
+      // Optionally clear fields
+      // setPocketConsumerKeyInput("");
+      // setPocketAccessTokenInput("");
     }
   };
 
@@ -254,6 +292,8 @@ export default function HomePage() {
     { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="text-primary" />, isVisible: visibility.reasoning, isMarkdown: true },
     { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="text-primary" />, isVisible: visibility.keyConcepts, isMarkdown: false }, // Typically comma-separated string
   ] : [];
+
+  const isAnyOperationInProgress = isDownloading || isExportingToNotion || isExportingToPocket;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -316,29 +356,29 @@ export default function HomePage() {
                     <TooltipProvider>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
-                             {(isDownloading || isExportingToNotion || isExportingToPocket) ? (
+                            <Button variant="outline" disabled={isAnyOperationInProgress}>
+                             {isAnyOperationInProgress ? (
                                 <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
                              ) : (
                                 <Download className="mr-2 h-4 w-4" />
                              )}
-                             {isDownloading ? 'Downloading...' : (isExportingToNotion || isExportingToPocket) ? 'Exporting...' : 'Download / Export'}
+                             {isAnyOperationInProgress ? 'Processing...' : 'Download / Export'}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleDownload('md')} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                            <DropdownMenuItem onSelect={() => handleDownload('md')} disabled={isAnyOperationInProgress}>
                                 <FileCode className="mr-2 h-4 w-4" /> Markdown (.md)
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDownload('txt')} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                            <DropdownMenuItem onSelect={() => handleDownload('txt')} disabled={isAnyOperationInProgress}>
                                 <FileDigit className="mr-2 h-4 w-4" /> Plain Text (.txt)
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDownload('pdf')} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                            <DropdownMenuItem onSelect={() => handleDownload('pdf')} disabled={isAnyOperationInProgress}>
                                 <FileX className="mr-2 h-4 w-4" /> PDF (.pdf)
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handleExportToNotion} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                            <DropdownMenuItem onSelect={handleExportToNotion} disabled={isAnyOperationInProgress}>
                                 <NotebookText className="mr-2 h-4 w-4" /> Export to Notion
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handleExportToPocket} disabled={isDownloading || isExportingToNotion || isExportingToPocket}>
+                            <DropdownMenuItem onSelect={handleExportToPocket} disabled={isAnyOperationInProgress}>
                                 <Pocket className="mr-2 h-4 w-4" /> Export to Pocket
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -430,6 +470,114 @@ export default function HomePage() {
           </main>
         </ScrollArea>
       </div>
+
+      {/* Notion Export Modal */}
+      <Dialog open={showNotionModal} onOpenChange={setShowNotionModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Export to Notion</DialogTitle>
+            <DialogDescription>
+              Please enter your Notion API Key and the Parent Page ID where the content should be added.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notionApiKey" className="text-right">
+                API Key
+              </Label>
+              <Input
+                id="notionApiKey"
+                value={notionApiKeyInput}
+                onChange={(e) => setNotionApiKeyInput(e.target.value)}
+                placeholder="Enter your Notion API Key"
+                className="col-span-3"
+                type="password"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notionPageId" className="text-right">
+                Parent Page ID
+              </Label>
+              <Input
+                id="notionPageId"
+                value={notionPageIdInput}
+                onChange={(e) => setNotionPageIdInput(e.target.value)}
+                placeholder="Enter the Notion Parent Page ID"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNotionModal(false)} disabled={isExportingToNotion}>
+              Cancel
+            </Button>
+            <Button onClick={submitNotionExport} disabled={isExportingToNotion}>
+              {isExportingToNotion ? (
+                <>
+                  <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
+                  Exporting...
+                </>
+              ) : (
+                'Export'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pocket Export Modal */}
+      <Dialog open={showPocketModal} onOpenChange={setShowPocketModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Export to Pocket</DialogTitle>
+            <DialogDescription>
+              Please enter your Pocket Consumer Key and Access Token.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="pocketConsumerKey" className="text-right">
+                Consumer Key
+              </Label>
+              <Input
+                id="pocketConsumerKey"
+                value={pocketConsumerKeyInput}
+                onChange={(e) => setPocketConsumerKeyInput(e.target.value)}
+                placeholder="Enter your Pocket Consumer Key"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="pocketAccessToken" className="text-right">
+                Access Token
+              </Label>
+              <Input
+                id="pocketAccessToken"
+                value={pocketAccessTokenInput}
+                onChange={(e) => setPocketAccessTokenInput(e.target.value)}
+                placeholder="Enter your Pocket Access Token"
+                className="col-span-3"
+                type="password" // Optional: mask token input
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPocketModal(false)} disabled={isExportingToPocket}>
+              Cancel
+            </Button>
+            <Button onClick={submitPocketExport} disabled={isExportingToPocket}>
+              {isExportingToPocket ? (
+                <>
+                  <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
+                  Exporting...
+                </>
+              ) : (
+                'Export'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
