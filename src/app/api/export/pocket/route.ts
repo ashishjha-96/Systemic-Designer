@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { exportToPocket } from '@/lib/downloadUtils'; 
 import type { GenerateSystemDesignProblemOutput } from '@/ai/flows/generate-system-design-problem'; 
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '8mb', // Set to 8MB, consistent with Notion route
+    },
+  },
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
