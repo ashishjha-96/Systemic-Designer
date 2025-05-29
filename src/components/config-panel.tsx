@@ -3,6 +3,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
+import { useState, useEffect } from "react"; // Added useState, useEffect
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -25,7 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { ProblemGenerationSchema, type ProblemGenerationFormValues } from "@/lib/schemas";
-import { supportedModels } from '@/lib/models'; // Import supported models
+// import { supportedModels } from '@/lib/models'; // Removed supportedModels
+import { fetchAvailableModels } from '@/lib/models'; // Import fetchAvailableModels
 import { Wand2, Settings2, Eye, EyeOff, Cpu } from "lucide-react"; // Added Cpu icon
 import type { Dispatch, SetStateAction } from "react";
 
@@ -57,14 +59,46 @@ const visibilityOptions: { key: keyof VisibilityState; label: string }[] = [
 ];
 
 export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: ConfigPanelProps) {
+  const [models, setModels] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
   const form = useForm<ProblemGenerationFormValues>({
     resolver: zodResolver(ProblemGenerationSchema),
     defaultValues: {
       difficultyLevel: "Medium",
       problemType: "",
-      modelName: 'googleai/gemini-2.0-flash', // Default model from schema
+      modelName: '', // Default model set to empty initially
     },
   });
+
+  useEffect(() => {
+    async function loadModels() {
+      setIsLoadingModels(true);
+      setModelsError(null);
+      try {
+        const fetchedModels = await fetchAvailableModels();
+        if (fetchedModels.length > 0) {
+          setModels(fetchedModels);
+          // Set the first model as default if no model is currently selected
+          if (!form.getValues('modelName') && fetchedModels.length > 0) {
+            form.setValue('modelName', fetchedModels[0], { shouldValidate: true });
+          }
+        } else {
+          setModelsError("No AI models available. Check API key or network.");
+          setModels([]); // Ensure models array is empty
+        }
+      } catch (error) {
+        console.error("Failed to fetch models:", error);
+        setModelsError("Failed to load AI models. Please check your API key and network connection.");
+        setModels([]); // Ensure models array is empty
+      } finally {
+        setIsLoadingModels(false);
+      }
+    }
+    loadModels();
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [form.setValue, form.getValues]); // Dependencies for form interaction
 
   const handleFormSubmit: SubmitHandler<ProblemGenerationFormValues> = async (values) => {
     await onSubmit(values);
@@ -127,21 +161,32 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
               <FormItem>
                 <FormLabel className="flex items-center gap-1">
                   <Cpu className="h-4 w-4" /> AI Model (Text Generation)
+                  {isLoadingModels && <Spinner className="ml-2 h-4 w-4 text-muted-foreground" />}
                 </FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value} // Use value for controlled component
+                  disabled={isLoadingModels || !!modelsError || models.length === 0}
+                >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select model" />
+                      <SelectValue placeholder={
+                        isLoadingModels ? "Loading models..." :
+                        modelsError ? "Error loading models" :
+                        models.length === 0 ? "No models available" :
+                        "Select a model"
+                      } />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {supportedModels.map(model => (
+                    {models.map(model => (
                       <SelectItem key={model} value={model}>
-                        {model.replace('googleai/', '')} {/* Display cleaner name */}
+                        {model.startsWith('models/') ? model.substring('models/'.length) : model}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {modelsError && <p className="text-sm font-medium text-destructive">{modelsError}</p>}
                  <p className="text-[0.8rem] text-muted-foreground">
                   Note: Diagram generation always uses a specific model optimized for images.
                 </p>
@@ -150,8 +195,12 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
             )}
           />
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Spinner className="mr-2 h-4 w-4" /> : <Wand2 className="mr-2 h-4 w-4" />}
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isLoading || isLoadingModels || !!modelsError || models.length === 0 || !form.watch('modelName')}
+          >
+            {isLoading || isLoadingModels ? <Spinner className="mr-2 h-4 w-4" /> : <Wand2 className="mr-2 h-4 w-4" />}
             Generate Problem
           </Button>
         </form>
