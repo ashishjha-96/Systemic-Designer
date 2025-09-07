@@ -121,7 +121,7 @@ const generateSystemDesignProblemFlow = ai.defineFlow(
     if (mainContentOutput.diagramDescription) {
       try {
         // Generate diagram image using the dedicated image generation model
-        // NOTE: Image generation uses 'googleai/gemini-2.0-flash-exp' regardless of the text model selected,
+        // NOTE: Image generation uses 'googleai/gemini-2.5-flash-image-preview' regardless of the text model selected,
         // as only specific models support image generation.
         const imageOutput = await generateDiagramImage({ prompt: mainContentOutput.diagramDescription });
         diagramImageUri = imageOutput.imageDataUri;
