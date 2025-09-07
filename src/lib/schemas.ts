@@ -11,7 +11,7 @@ export const ProblemGenerationSchema = z.object({
     })
     .optional(), // Makes the field itself optional, allowing undefined if not submitted
   modelName: z.enum(supportedModels) // Validate against the list of supported models
-    .default('googleai/gemini-2.0-flash'), // Set a default model
+    .default('googleai/gemini-2.5-flash'), // Set a default model
 });
 
 export type ProblemGenerationFormValues = z.infer<typeof ProblemGenerationSchema>;

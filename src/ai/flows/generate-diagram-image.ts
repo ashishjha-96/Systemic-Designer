@@ -34,7 +34,7 @@ const generateDiagramImageFlow = ai.defineFlow(
   },
   async (input) => {
     const { media } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: Model for image generation
+      model: 'googleai/gemini-2.5-flash-image-preview', // IMPORTANT: Model for image generation
       prompt: `Generate a clear, professional-looking schematic diagram based on the following description: "${input.prompt}". The diagram should use standard system design symbols where appropriate (e.g., cylinders for databases, rectangles for servers, cloud for internet). Ensure components are clearly labeled and connections/data flow are explicitly shown with arrows. The style should be clean and suitable for a technical presentation.`,
       config: {
         responseModalities: ['TEXT', 'IMAGE'], // MUST provide both TEXT and IMAGE
