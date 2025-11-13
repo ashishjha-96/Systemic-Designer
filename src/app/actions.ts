@@ -20,8 +20,9 @@ export async function generateProblemAction(values: ProblemGenerationFormValues)
       let errorMessage = "Invalid input: ";
       const fieldErrors = validatedValues.error.flatten().fieldErrors;
       for (const key in fieldErrors) {
-        if (fieldErrors[key]) {
-          errorMessage += `${key}: ${fieldErrors[key]!.join(', ')}; `;
+        const typedKey = key as keyof typeof fieldErrors;
+        if (fieldErrors[typedKey]) {
+          errorMessage += `${key}: ${fieldErrors[typedKey]!.join(', ')}; `;
         }
       }
       return { success: false, error: errorMessage.trim() };

@@ -178,7 +178,7 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
       if (line.startsWith('# ')) { // H1
         checkAddPage(FONT_SIZES.h1 * 0.35 + LINE_SPACING.h1);
         doc.setFontSize(FONT_SIZES.h1);
-        doc.setFont(undefined, 'bold');
+        doc.setFont('helvetica', 'bold');
         const text = line.substring(2);
         const splitText = doc.splitTextToSize(text, usableWidth);
         doc.text(splitText, MARGIN, y);
@@ -186,7 +186,7 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
       } else if (line.startsWith('## ')) { // H2
         checkAddPage(FONT_SIZES.h2 * 0.35 + LINE_SPACING.h2);
         doc.setFontSize(FONT_SIZES.h2);
-        doc.setFont(undefined, 'bold');
+        doc.setFont('helvetica', 'bold');
         const text = line.substring(3);
         const splitText = doc.splitTextToSize(text, usableWidth);
         doc.text(splitText, MARGIN, y);
@@ -194,7 +194,7 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
       } else if (line.startsWith('### ')) { // H3
         checkAddPage(FONT_SIZES.h3 * 0.35 + LINE_SPACING.h3);
         doc.setFontSize(FONT_SIZES.h3);
-        doc.setFont(undefined, 'bold');
+        doc.setFont('helvetica', 'bold');
         const text = line.substring(4);
         const splitText = doc.splitTextToSize(text, usableWidth);
         doc.text(splitText, MARGIN, y);
@@ -203,7 +203,7 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
       } else if (line.trim().startsWith('* ') || line.trim().startsWith('- ') || line.trim().match(/^(\d+\.)\s/)) {
         checkAddPage(FONT_SIZES.p * 0.35);
         doc.setFontSize(FONT_SIZES.p);
-        doc.setFont(undefined, 'normal');
+        doc.setFont('helvetica', 'normal');
         const itemText = line.replace(/^(\*|-|\d+\.)\s+/, '');
         const prefix = line.trim().startsWith('*') || line.trim().startsWith('-') ? '• ' : '  '; // Indent numbered lists slightly more maybe
         const splitText = doc.splitTextToSize(itemText, usableWidth - 5); // Indent list item text
@@ -221,7 +221,7 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
         }
         checkAddPage(FONT_SIZES.p * 0.35 + LINE_SPACING.p);
         doc.setFontSize(FONT_SIZES.p);
-        doc.setFont(undefined, 'normal');
+        doc.setFont('helvetica', 'normal');
         // Basic bold/italic handling - limitations apply
         // This is very basic and won't handle nested or complex cases well.
         const text = line.replace(/(\*\*|__)(.*?)\1/g, '$2'); // Crude bold removal for length calculation
@@ -232,13 +232,13 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
       }
     }
      // Reset font after processing markdown section
-     doc.setFont(undefined, 'normal');
+     doc.setFont('helvetica', 'normal');
   };
 
   // --- Document Title ---
   checkAddPage(FONT_SIZES.h1 * 0.35 + LINE_SPACING.h1);
   doc.setFontSize(FONT_SIZES.h1);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text(`System Design Problem: ${problemData.generatedProblemType || 'Generated Problem'}`, MARGIN, y);
   y += FONT_SIZES.h1 * 0.35 + LINE_SPACING.h1;
 
@@ -272,7 +272,7 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
   renderMarkdown('## Diagram');
   checkAddPage(FONT_SIZES.p * 0.35);
   doc.setFontSize(FONT_SIZES.p);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   if (problemData.diagramImageUri) {
       const diagText = `A diagram image was generated. Please refer to the application view.\n(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
       const splitText = doc.splitTextToSize(diagText, usableWidth);
