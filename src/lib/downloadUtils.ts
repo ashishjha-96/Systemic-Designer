@@ -2,6 +2,25 @@
 import jsPDF from 'jspdf';
 import type { GenerateSystemDesignProblemOutput } from "@/ai/flows/generate-system-design-problem";
 
+export async function shareToMarkdocLive(problemData: GenerateSystemDesignProblemOutput): Promise<string> {
+  const markdown = generateMarkdownContent(problemData);
+
+  const response = await fetch("https://markdoc.live/api/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ markdown }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as Record<string, string>).error || `Server returned ${response.status}`);
+  }
+
+  const data: { url: string } = await response.json();
+  window.open(data.url, "_blank");
+  return data.url;
+}
+
 // Constants for PDF generation
 const FONT_SIZES = {
     h1: 18,

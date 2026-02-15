@@ -37,13 +37,15 @@ import {
   Zap,
   Target,
   Boxes,
+  Share2,
 } from "lucide-react";
-import { generateMarkdownContent, generatePlainTextContent, generatePdfContent } from "@/lib/downloadUtils";
+import { generateMarkdownContent, generatePlainTextContent, generatePdfContent, shareToMarkdocLive } from "@/lib/downloadUtils";
 
 export default function HomePage() {
   const [problemData, setProblemData] = useState<GenerateSystemDesignProblemOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -137,6 +139,27 @@ export default function HomePage() {
         });
     } finally {
        setIsDownloading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!problemData || isSharing) return;
+    setIsSharing(true);
+    try {
+      await shareToMarkdocLive(problemData);
+      toast({
+        title: "Shared!",
+        description: "Opened in markdoc.live in a new tab.",
+      });
+    } catch (e) {
+      console.error("Share failed:", e);
+      toast({
+        title: "Share Failed",
+        description: "Could not share to markdoc.live. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -238,7 +261,23 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  <TooltipProvider>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-border/60"
+                      disabled={isSharing}
+                      onClick={handleShare}
+                    >
+                      {isSharing ? (
+                        <span className="animate-spin mr-1.5 h-3 w-3 border-b-2 border-current rounded-full" />
+                      ) : (
+                        <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      {isSharing ? 'Sharing...' : 'Share'}
+                    </Button>
+
+                    <TooltipProvider>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm" className="h-8 border-border/60" disabled={isDownloading}>
@@ -263,6 +302,7 @@ export default function HomePage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TooltipProvider>
+                  </div>
                 </div>
 
                 {/* Sections */}
