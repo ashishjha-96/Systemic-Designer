@@ -2,12 +2,12 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import type { GenerateSystemDesignProblemOutput } from "@/ai/flows/generate-system-design-problem";
 import { AppHeader } from "@/components/layout/header";
 import { ConfigPanel, type VisibilityState } from "@/components/config-panel";
 import { ProblemSection } from "@/components/problem-section";
 import { generateProblemAction } from "@/app/actions";
+import { MermaidDiagram } from "@/components/mermaid-diagram";
 import type { ProblemGenerationFormValues } from "@/lib/schemas";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -263,54 +263,19 @@ export default function HomePage() {
                 ))}
 
                 {/* Diagram Section */}
-                {problemData.diagramImageUri && visibility.diagram && (
+                {problemData.mermaidDiagram && visibility.diagram && (
                 <Card>
                     <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl">
                         <Projector className="text-primary" /> Diagram
                     </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                    <div>
-                        <h4 className="font-medium mb-2 text-muted-foreground">Generated Schematic Diagram:</h4>
-                        <div className="flex justify-center p-4 border rounded-md bg-secondary/30">
-                        <Image
-                            src={problemData.diagramImageUri}
-                            alt="Generated System Design Diagram"
-                            width={800}
-                            height={600}
-                            className="rounded-md border object-contain max-w-full h-auto"
-                            data-ai-hint="system architecture"
-                            priority={false} // Keep false unless above the fold
-                        />
-                        </div>
+                    <CardContent>
+                    <div className="p-4 border rounded-md bg-secondary/30">
+                        <MermaidDiagram chart={problemData.mermaidDiagram} />
                     </div>
-                    {problemData.diagramDescription && (
-                        <div>
-                            <h4 className="font-medium mt-4 mb-2 text-muted-foreground">Diagram Description (Used for Generation):</h4>
-                            {/* Render diagram description as plain text */}
-                            <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{problemData.diagramDescription}</p>
-                        </div>
-                    )}
                     </CardContent>
                 </Card>
-                )}
-                {/* Fallback if image generation failed but description exists */}
-                {problemData && !problemData.diagramImageUri && problemData.diagramDescription && visibility.diagram && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <Projector className="text-primary" /> Diagram Description
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           {/* Render diagram description as plain text */}
-                            <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{problemData.diagramDescription}</p>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                            A visual diagram could not be generated. Displaying the textual description instead.
-                            </p>
-                        </CardContent>
-                    </Card>
                 )}
                 </>
             )}

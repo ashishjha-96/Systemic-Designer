@@ -9,8 +9,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { generateDiagramImage } from './generate-diagram-image';
-import { supportedModels } from '@/lib/models'; // Import from new location
+import { supportedModels } from '@/lib/models';
+import { sanitizeMermaidCode, validateMermaidSyntax } from '@/lib/mermaid-utils';
 
 const GenerateSystemDesignProblemInputSchema = z.object({
   difficultyLevel: z
@@ -34,8 +34,7 @@ const GenerateSystemDesignProblemOutputSchema = z.object({
   capacityPlanning: z.string().describe('Detailed capacity planning for each component in the solution based on the scale estimates, in Markdown format. This should cover how many resources (servers, database capacity, etc.) are needed.'),
   reasoning: z.string().describe('The reasoning behind the proposed solution, in detailed Markdown format. Explain the trade-offs and design choices made.'),
   keyConcepts: z.string().describe('The key concepts covered by the problem, as a comma-separated string.'),
-  diagramDescription: z.string().describe('A detailed textual description for an AI image generation model to create a schematic diagram. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow. Emphasize clear, standard symbols and labels for a professional technical diagram.'),
-  diagramImageUri: z.string().optional().describe('A generated schematic diagram of the system design solution, as a data URI. This might be absent if image generation fails.'),
+  mermaidDiagram: z.string().describe('A valid Mermaid diagram (flowchart, graph, or C4 diagram) representing the system architecture. Must be syntactically correct Mermaid code that can be rendered directly. Use graph TD or flowchart TD for system design diagrams.'),
   generatedProblemType: z.string().describe('The specific type of problem that was generated or used by the AI.'),
 });
 export type GenerateSystemDesignProblemOutput = z.infer<
@@ -53,10 +52,10 @@ export async function generateSystemDesignProblem(
 const generateSystemDesignProblemPrompt = ai.definePrompt({
   name: 'generateSystemDesignProblemPrompt',
   input: {schema: GenerateSystemDesignProblemInputSchema},
-  output: {schema: GenerateSystemDesignProblemOutputSchema.omit({ diagramImageUri: true })}, // The prompt won't generate the image URI directly
+  output: {schema: GenerateSystemDesignProblemOutputSchema}, // Mermaid is generated inline, no separate image step
   // Prompt text remains the same, Handlebars context accesses input fields directly
   prompt: `You are an expert system design problem generator.
-Your goal is to populate a JSON object with the following fields: "problemStatement", "scaleEstimates", "solution", "capacityPlanning", "reasoning", "keyConcepts", "diagramDescription", and "generatedProblemType".
+Your goal is to populate a JSON object with the following fields: "problemStatement", "scaleEstimates", "solution", "capacityPlanning", "reasoning", "keyConcepts", "mermaidDiagram", and "generatedProblemType".
 
 Inputs:
 - Difficulty Level: {{{difficultyLevel}}}
@@ -93,10 +92,57 @@ Instructions:
         Explain your calculations and assumptions clearly.
     -   \`reasoning\`: The rationale behind the key design choices in your solution. **This must be in detailed Markdown format**, explaining trade-offs considered (e.g., consistency vs. availability, latency vs. cost), why specific technologies or patterns were chosen over alternatives, and potential bottlenecks or limitations.
     -   \`keyConcepts\`: A comma-separated string of important system design concepts relevant to this problem and solution (e.g., Load Balancing, Caching, Database Sharding, CAP Theorem, Microservices, Message Queues, Data Replication, Idempotency, Rate Limiting, Circuit Breaker).
-    -   \`diagramDescription\`: A detailed textual description for an AI image generation model to create a **schematic diagram**. This diagram should visually represent the proposed system architecture, highlighting key components, their connections, and data flow. Use standard system design symbols (e.g., rectangles for servers, cylinders for databases, cloud for internet, arrows for data flow). Ensure components are clearly labeled. For example: "A schematic diagram showing a user icon connecting via the internet (cloud icon) to a DNS. The DNS resolves to a Global Load Balancer (GLB). The GLB directs traffic to Regional Load Balancers (RLB). Each RLB distributes requests to a fleet of rectangular application server blocks, labeled 'App Server (AS)'. Each app server has arrows indicating read/write operations to a sharded cylindrical database cluster labeled 'Sharded DB (e.g., Cassandra)' and a rectangular cache cluster labeled 'Distributed Cache (e.g., Redis)'. App servers might also publish messages to a 'Message Queue (e.g., Kafka)' which are consumed by 'Worker Services'. Arrows must clearly show request paths, response paths, and data flow directions between all components."
+    -   \`mermaidDiagram\`: A valid Mermaid diagram in \`graph TD\` or \`flowchart TD\` syntax that visually represents the proposed system architecture. The diagram MUST be syntactically correct Mermaid code. Rules:
+        *   Use \`graph TD\` or \`flowchart TD\` as the diagram type.
+        *   Use descriptive node IDs (e.g., \`LB[Load Balancer]\`, \`DB[(Database)]\`, \`Cache[Redis Cache]\`).
+        *   Use standard Mermaid shapes: \`[rectangles]\` for services/servers, \`[(cylinders)]\` for databases, \`{diamonds}\` for decisions, \`([rounded])\` for users/clients.
+        *   Show data flow with arrows: \`-->\`, \`-->|label|\`, \`-.->|async|\`.
+        *   Group related components using \`subgraph\` blocks.
+        *   Label all connections to show what data flows between components.
+        *   **CRITICAL**: If any node label or edge label contains special characters like parentheses \`()\`, slashes \`/\`, ampersands \`&\`, angle brackets \`<>\`, or curly braces \`{}\`, you MUST wrap the label text in double quotes. Examples:
+            - \`A["Service (HTTP/gRPC)"]\` NOT \`A[Service (HTTP/gRPC)]\`
+            - \`-->|"Read/Write (async)"|\` NOT \`-->|Read/Write (async)|\`
+            - \`DB["PostgreSQL (Primary)"]\` NOT \`DB[PostgreSQL (Primary)]\`
+        *   Do NOT wrap the code in markdown code fences (no \`\`\`mermaid). Just output the raw Mermaid syntax.
+        *   Example:
+            graph TD
+              Client([Client]) -->|HTTP Request| LB[Load Balancer]
+              LB --> AS1[App Server 1]
+              LB --> AS2[App Server 2]
+              AS1 --> Cache[Redis Cache]
+              AS1 --> DB[(PostgreSQL)]
+              AS2 --> Cache
+              AS2 --> DB
 
-Ensure your output is a valid JSON object matching the schema (excluding diagramImageUri).
+Ensure your output is a valid JSON object matching the schema.
 `,
+});
+
+// AI prompt to fix broken Mermaid syntax
+const fixMermaidPrompt = ai.definePrompt({
+  name: 'fixMermaidPrompt',
+  input: {schema: z.object({ mermaidCode: z.string(), errorMessage: z.string() })},
+  output: {schema: z.object({ fixedMermaidCode: z.string() })},
+  prompt: `You are a Mermaid diagram syntax expert. The following Mermaid code has a syntax error. Fix it and return ONLY the corrected Mermaid code.
+
+Common issues to fix:
+- Unquoted labels containing special characters like (), /, &, <>, {} must be wrapped in double quotes
+  - BAD:  A[Service (HTTP/gRPC)] --> B
+  - GOOD: A["Service (HTTP/gRPC)"] --> B
+  - BAD:  A -->|Read/Write (async)| B
+  - GOOD: A -->|"Read/Write (async)"| B
+- Ensure all node IDs are valid (alphanumeric, no spaces)
+- Ensure arrows are properly formatted (-->, -.->)
+- Ensure subgraph blocks are properly closed with 'end'
+
+Mermaid code with error:
+\`\`\`
+{{{mermaidCode}}}
+\`\`\`
+
+Error message: {{{errorMessage}}}
+
+Return the fixed Mermaid code. Do NOT include markdown code fences in your output. Just the raw Mermaid syntax.`,
 });
 
 
@@ -117,23 +163,33 @@ const generateSystemDesignProblemFlow = ai.defineFlow(
       throw new Error('Failed to generate main content for the system design problem.');
     }
 
-    let diagramImageUri: string | undefined = undefined;
-    if (mainContentOutput.diagramDescription) {
+    // Sanitize the Mermaid diagram (regex-based, handles common issues)
+    let mermaidDiagram = sanitizeMermaidCode(mainContentOutput.mermaidDiagram);
+
+    // AI validation loop: attempt to parse, if it fails ask AI to fix (max 2 retries)
+    const MAX_FIX_ATTEMPTS = 2;
+    for (let attempt = 0; attempt < MAX_FIX_ATTEMPTS; attempt++) {
+      const validationError = validateMermaidSyntax(mermaidDiagram);
+      if (!validationError) break; // Syntax looks valid
+
+      console.warn(`Mermaid validation issue (attempt ${attempt + 1}/${MAX_FIX_ATTEMPTS}):`, validationError);
       try {
-        // Generate diagram image using the dedicated image generation model
-        // NOTE: Image generation uses 'googleai/gemini-2.5-flash-image-preview' regardless of the text model selected,
-        // as only specific models support image generation.
-        const imageOutput = await generateDiagramImage({ prompt: mainContentOutput.diagramDescription });
-        diagramImageUri = imageOutput.imageDataUri;
-      } catch (error) {
-        console.error("Failed to generate diagram image:", error);
-        // Proceed without the image URI if generation fails
+        const { output: fixedOutput } = await fixMermaidPrompt(
+          { mermaidCode: mermaidDiagram, errorMessage: validationError },
+          { model: input.modelName }
+        );
+        if (fixedOutput?.fixedMermaidCode) {
+          mermaidDiagram = sanitizeMermaidCode(fixedOutput.fixedMermaidCode);
+        }
+      } catch (fixError) {
+        console.error('AI Mermaid fix failed:', fixError);
+        break; // Don't retry if the fix prompt itself fails
       }
     }
 
     return {
       ...mainContentOutput,
-      diagramImageUri: diagramImageUri,
+      mermaidDiagram,
     };
   }
 );

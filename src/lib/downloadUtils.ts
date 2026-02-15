@@ -45,14 +45,8 @@ export function generateMarkdownContent(problemData: GenerateSystemDesignProblem
   if (problemData.keyConcepts) {
     markdown += `\n\n## Key Concepts\n${problemData.keyConcepts}`;
   }
-  if (problemData.diagramDescription) {
-    markdown += `\n\n## Diagram Description\n${problemData.diagramDescription}`;
-  }
-  markdown += `\n\n## Diagram\n`;
-  if (problemData.diagramImageUri) {
-    markdown += `A diagram image was generated for this problem. Please refer to the application view or the provided image data URI if viewing this outside the application context.\n(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
-  } else {
-     markdown += `(No diagram image was generated for this problem)`;
+  if (problemData.mermaidDiagram) {
+    markdown += `\n\n## System Architecture Diagram\n\`\`\`mermaid\n${problemData.mermaidDiagram}\n\`\`\``;
   }
 
   return markdown.trim() + '\n';
@@ -114,13 +108,8 @@ export function generatePlainTextContent(problemData: GenerateSystemDesignProble
   if (problemData.keyConcepts) {
     text += `\nKEY CONCEPTS\n------------\n${stripMarkdownForTxt(problemData.keyConcepts)}\n`;
   }
-  if (problemData.diagramDescription) {
-    text += `\nDIAGRAM DESCRIPTION\n-------------------\n${stripMarkdownForTxt(problemData.diagramDescription)}\n`;
-  }
-  if (problemData.diagramImageUri) {
-    text += `\nDIAGRAM\n-------\nA diagram image was generated. Refer to the application view.\n(Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
-  } else {
-     text += `\nDIAGRAM\n-------\n(No diagram image was generated)`;
+  if (problemData.mermaidDiagram) {
+    text += `\nSYSTEM ARCHITECTURE DIAGRAM (Mermaid)\n-------------------------------------\n${problemData.mermaidDiagram}\n`;
   }
 
   return text;
@@ -264,39 +253,19 @@ export function generatePdfContent(problemData: GenerateSystemDesignProblemOutpu
   if (problemData.keyConcepts) {
      renderMarkdown(`## Key Concepts\n${problemData.keyConcepts}`);
   }
-   if (problemData.diagramDescription) {
-     renderMarkdown(`## Diagram Description\n${problemData.diagramDescription}`);
-  }
-
-  // --- Diagram Section ---
-  renderMarkdown('## Diagram');
-  checkAddPage(FONT_SIZES.p * 0.35);
-  doc.setFontSize(FONT_SIZES.p);
-  doc.setFont(undefined, 'normal');
-  if (problemData.diagramImageUri) {
-      const diagText = `A diagram image was generated. Please refer to the application view.\n(Image Data URI starts with: ${problemData.diagramImageUri.substring(0, 50)}...)`;
-      const splitText = doc.splitTextToSize(diagText, usableWidth);
-      doc.text(splitText, MARGIN, y);
-      y += splitText.length * FONT_SIZES.p * 0.35;
-      // Note: Embedding the large base64 image directly into the PDF can make it huge.
-      // This text-based approach avoids that issue. For actual image embedding:
-      // try {
-      //   // Check if y position leaves enough space for the image
-      //   const imgHeight = 50; // Example desired height in mm
-      //   if (y + imgHeight > pageHeight - MARGIN) {
-      //     doc.addPage();
-      //     y = MARGIN;
-      //   }
-      //   doc.addImage(problemData.diagramImageUri, 'PNG', MARGIN, y, usableWidth, imgHeight);
-      //   y += imgHeight + 5; // Add space after image
-      // } catch (e) {
-      //   console.error("Error adding image to PDF:", e);
-      //   doc.text("Error embedding diagram image.", MARGIN, y);
-      //    y += FONT_SIZES.p * 0.35 + LINE_SPACING.p;
-      // }
-  } else {
-     doc.text('(No diagram image was generated for this problem)', MARGIN, y);
-     y += FONT_SIZES.p * 0.35;
+   if (problemData.mermaidDiagram) {
+     renderMarkdown(`## System Architecture Diagram\nThe Mermaid diagram code for this system design:`);
+     checkAddPage(FONT_SIZES.code * 0.35 + LINE_SPACING.code);
+     doc.setFont('courier', 'normal');
+     doc.setFontSize(FONT_SIZES.code);
+     const diagramLines = doc.splitTextToSize(problemData.mermaidDiagram, usableWidth);
+     for (const line of diagramLines) {
+       checkAddPage(FONT_SIZES.code * 0.35);
+       doc.text(line, MARGIN, y);
+       y += FONT_SIZES.code * 0.35;
+     }
+     doc.setFont('helvetica', 'normal');
+     y += LINE_SPACING.code;
   }
 
   doc.save(filename);

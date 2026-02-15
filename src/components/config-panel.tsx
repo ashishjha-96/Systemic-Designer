@@ -143,7 +143,7 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility }: 
                   </SelectContent>
                 </Select>
                  <p className="text-[0.8rem] text-muted-foreground">
-                  Note: Diagram generation always uses a specific model optimized for images.
+                  Diagrams are generated as Mermaid charts using the selected model.
                 </p>
                 <FormMessage />
               </FormItem>
