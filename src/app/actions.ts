@@ -38,8 +38,36 @@ export async function generateProblemAction(values: ProblemGenerationFormValues)
     return { success: true, data: result };
   } catch (error) {
     console.error("Error generating system design problem:", error);
-    // Check if error is an instance of Error to safely access message property
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate problem. Please try again.";
+    const msg = error instanceof Error ? error.message : "";
+
+    // Rate limit / quota exceeded
+    if (msg.includes("429") || msg.includes("Too Many Requests") || msg.includes("quota")) {
+      const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+      const retrySec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : null;
+      const retryHint = retrySec ? ` Please try again in ~${retrySec} seconds.` : " Please wait a moment and try again.";
+      return {
+        success: false,
+        error: `API rate limit reached for this model.${retryHint} You can also try switching to a different model.`,
+      };
+    }
+
+    // Model not found / invalid
+    if (msg.includes("404") || msg.includes("not found") || msg.includes("is not supported")) {
+      return {
+        success: false,
+        error: "The selected model is currently unavailable. Please choose a different model and try again.",
+      };
+    }
+
+    // API key issues
+    if (msg.includes("401") || msg.includes("403") || msg.includes("API key")) {
+      return {
+        success: false,
+        error: "API authentication failed. Please check your GOOGLE_API_KEY configuration.",
+      };
+    }
+
+    const errorMessage = msg || "Failed to generate problem. Please try again.";
     return { success: false, error: errorMessage };
   }
 }

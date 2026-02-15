@@ -8,7 +8,7 @@ interface ProblemSectionProps {
   icon: ReactNode;
   isVisible: boolean;
   className?: string;
-  isMarkdown?: boolean; // Add a new prop to indicate if content is Markdown
+  isMarkdown?: boolean;
 }
 
 export function ProblemSection({ title, content, icon, isVisible, className, isMarkdown }: ProblemSectionProps) {
@@ -17,20 +17,20 @@ export function ProblemSection({ title, content, icon, isVisible, className, isM
   }
 
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
+    <Card className={`border-border/60 shadow-sm ${className ?? ''}`}>
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold">
           {icon}
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isMarkdown && typeof content === 'string' ? (
-          <ReactMarkdown className="prose dark:prose-invert max-w-none prose-sm md:prose-base leading-relaxed">
+          <ReactMarkdown className="prose dark:prose-invert max-w-none prose-sm md:prose-base leading-relaxed prose-headings:font-semibold prose-headings:tracking-tight">
             {content}
           </ReactMarkdown>
         ) : typeof content === 'string' ? (
-          <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{content}</p>
+          <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed text-foreground/80">{content}</p>
         ) : (
           content
         )}

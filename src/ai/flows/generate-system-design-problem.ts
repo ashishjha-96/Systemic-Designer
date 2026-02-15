@@ -103,6 +103,9 @@ Instructions:
             - \`A["Service (HTTP/gRPC)"]\` NOT \`A[Service (HTTP/gRPC)]\`
             - \`-->|"Read/Write (async)"|\` NOT \`-->|Read/Write (async)|\`
             - \`DB["PostgreSQL (Primary)"]\` NOT \`DB[PostgreSQL (Primary)]\`
+        *   **CRITICAL**: Arrow syntax must be exact. Valid arrows: \`-->\` (solid), \`-.->\` (dotted), \`==>\` (thick). Do NOT use \`--.->\` or other variations. The dotted arrow is EXACTLY \`-.->\` (dash dot dash arrow).
+        *   **CRITICAL**: Every edge must have a target node. \`A -- "label"\` alone is INVALID. It must be \`A -->|"label"| B\`.
+        *   **CRITICAL**: Do NOT redefine nodes (with labels) inside subgraph blocks if they were already defined elsewhere. Just reference them by their ID.
         *   Do NOT wrap the code in markdown code fences (no \`\`\`mermaid). Just output the raw Mermaid syntax.
         *   Example:
             graph TD
@@ -131,8 +134,10 @@ Common issues to fix:
   - GOOD: A["Service (HTTP/gRPC)"] --> B
   - BAD:  A -->|Read/Write (async)| B
   - GOOD: A -->|"Read/Write (async)"| B
+- Malformed dotted arrows: use exactly \`-.->\` (dash dot dash arrow). NOT \`--.->\` or \`-..->.\`
+- Every edge must have both a source and target node. \`A -- "label"\` alone is INVALID → use \`A -->|"label"| B\`
+- Do NOT redefine nodes inside subgraph blocks if already defined. Reference by ID only.
 - Ensure all node IDs are valid (alphanumeric, no spaces)
-- Ensure arrows are properly formatted (-->, -.->)
 - Ensure subgraph blocks are properly closed with 'end'
 
 Mermaid code with error:

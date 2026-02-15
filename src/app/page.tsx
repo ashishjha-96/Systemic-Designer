@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TooltipProvider } from "@/components/ui/tooltip"; // Removed unused Tooltip components
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   FileText,
   Lightbulb,
@@ -27,20 +27,24 @@ import {
   BookOpenText,
   Projector,
   AlertTriangle,
-  Info,
   Scaling,
   Calculator,
   Download,
-  FileCode, // Icon for Markdown
-  FileDigit, // Icon for TXT
-  FileX, // Icon for PDF
+  FileCode,
+  FileDigit,
+  FileX,
+  LayoutDashboard,
+  Zap,
+  Target,
+  Boxes,
 } from "lucide-react";
-import { generateMarkdownContent, generatePlainTextContent, generatePdfContent } from "@/lib/downloadUtils"; // Import download utils
+import { generateMarkdownContent, generatePlainTextContent, generatePdfContent } from "@/lib/downloadUtils";
 
 export default function HomePage() {
   const [problemData, setProblemData] = useState<GenerateSystemDesignProblemOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false); // State for download loading
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -81,7 +85,7 @@ export default function HomePage() {
   const handleDownload = async (format: 'md' | 'txt' | 'pdf') => {
     if (!problemData || isDownloading) return;
 
-    setIsDownloading(true); // Start download loading state
+    setIsDownloading(true);
     let filename = `system-design-${problemData.generatedProblemType?.toLowerCase().replace(/\s+/g, '-') || 'problem'}`;
 
     try {
@@ -113,12 +117,10 @@ export default function HomePage() {
         URL.revokeObjectURL(url);
       } else if (format === 'pdf') {
         filename += ".pdf";
-        // Use a promise or async/await if generatePdfContent is async internally
         await new Promise<void>(resolve => {
             generatePdfContent(problemData, filename);
             resolve();
         });
-        // PDF generation handled by jspdf's save method within the utility function
       }
 
        toast({
@@ -134,150 +136,163 @@ export default function HomePage() {
             variant: "destructive",
         });
     } finally {
-       setIsDownloading(false); // End download loading state regardless of success/failure
+       setIsDownloading(false);
     }
   };
 
 
   const sections = problemData ? [
-    { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="text-primary" />, isVisible: visibility.problem, problemType: problemData.generatedProblemType, isMarkdown: true }, // Assume markdown
-    { id: 'scaleEstimates', title: "Scale Estimates", content: problemData.scaleEstimates, icon: <Scaling className="text-primary" />, isVisible: visibility.scaleEstimates, isMarkdown: true },
-    { id: 'solution', title: "Solution", content: problemData.solution, icon: <Lightbulb className="text-primary" />, isVisible: visibility.solution, isMarkdown: true },
-    { id: 'capacityPlanning', title: "Capacity Planning", content: problemData.capacityPlanning, icon: <Calculator className="text-primary" />, isVisible: visibility.capacityPlanning, isMarkdown: true },
-    { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="text-primary" />, isVisible: visibility.reasoning, isMarkdown: true },
-    { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="text-primary" />, isVisible: visibility.keyConcepts, isMarkdown: false }, // Typically comma-separated string
+    { id: 'problem', title: "Problem Statement", content: problemData.problemStatement, icon: <FileText className="h-5 w-5 text-primary" />, isVisible: visibility.problem, isMarkdown: true },
+    { id: 'scaleEstimates', title: "Scale Estimates", content: problemData.scaleEstimates, icon: <Scaling className="h-5 w-5 text-primary" />, isVisible: visibility.scaleEstimates, isMarkdown: true },
+    { id: 'solution', title: "Solution", content: problemData.solution, icon: <Lightbulb className="h-5 w-5 text-primary" />, isVisible: visibility.solution, isMarkdown: true },
+    { id: 'capacityPlanning', title: "Capacity Planning", content: problemData.capacityPlanning, icon: <Calculator className="h-5 w-5 text-primary" />, isVisible: visibility.capacityPlanning, isMarkdown: true },
+    { id: 'reasoning', title: "Reasoning", content: problemData.reasoning, icon: <Sparkles className="h-5 w-5 text-primary" />, isVisible: visibility.reasoning, isMarkdown: true },
+    { id: 'keyConcepts', title: "Key Concepts", content: problemData.keyConcepts, icon: <BookOpenText className="h-5 w-5 text-primary" />, isVisible: visibility.keyConcepts, isMarkdown: false },
   ] : [];
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <AppHeader />
+      <AppHeader
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed(prev => !prev)}
+      />
       <div className="flex flex-1 flex-col md:flex-row">
         <ConfigPanel
           onSubmit={handleGenerateProblem}
           isLoading={isLoading}
           visibility={visibility}
           setVisibility={setVisibility}
+          isCollapsed={sidebarCollapsed}
         />
         <ScrollArea className="flex-1">
-          <main className="p-6 md:p-10 space-y-6">
-            {/* Initial Welcome Message */}
+          <main className="p-6 md:p-8 lg:p-10 max-w-5xl mx-auto">
+            {/* Welcome Screen */}
             {!problemData && !isLoading && !error && (
-              <Card className="text-center py-12">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Welcome to Systematic Designer!</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Configure your options on the left and click "Generate Problem" to get started.
+              <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                <div className="mb-8">
+                  <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+                    Design systems
+                    <br />
+                    <span className="text-primary">like an architect.</span>
+                  </h1>
+                  <p className="mt-4 text-muted-foreground text-lg max-w-md mx-auto">
+                    Configure your options on the left and generate a system design challenge to get started.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl">
+                  <div className="flex flex-col items-start gap-2 p-4 rounded-xl border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition-all cursor-default">
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-foreground/80">Practice scalability patterns & trade-offs</span>
+                  </div>
+                  <div className="flex flex-col items-start gap-2 p-4 rounded-xl border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition-all cursor-default">
+                    <Zap className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-foreground/80">AI-generated diagrams & capacity plans</span>
+                  </div>
+                  <div className="flex flex-col items-start gap-2 p-4 rounded-xl border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition-all cursor-default">
+                    <Boxes className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-foreground/80">Export to Markdown, PDF, or plain text</span>
+                  </div>
+                </div>
+              </div>
             )}
+
             {/* Loading State */}
             {isLoading && (
-               <Card className="text-center py-12">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Generating Problem...</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Please wait while we craft a system design challenge for you. This might take a moment, especially if generating a diagram.
-                  </p>
-                  {/* Optional: Add a spinner here */}
-                </CardContent>
-              </Card>
+              <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                <div className="relative mb-6">
+                  <div className="h-12 w-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                </div>
+                <h2 className="text-xl font-semibold tracking-tight">Generating your challenge...</h2>
+                <p className="mt-2 text-muted-foreground text-sm max-w-sm">
+                  Crafting a system design problem with solution, capacity planning, and architecture diagram.
+                </p>
+              </div>
             )}
+
             {/* Error State */}
             {error && !isLoading && (
-              <Card className="border-destructive text-center py-12">
-                 <CardHeader>
-                  <CardTitle className="flex items-center justify-center gap-2 text-destructive text-2xl">
-                    <AlertTriangle /> Error
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-destructive-foreground">{error}</p>
-                </CardContent>
-              </Card>
+              <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-4">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
+                <h2 className="text-xl font-semibold">Something went wrong</h2>
+                <p className="mt-2 text-muted-foreground text-sm max-w-sm">{error}</p>
+              </div>
             )}
 
             {/* Problem Data Display */}
             {problemData && (
-                <>
-                 {/* Download Button Dropdown */}
-                 <div className="flex justify-end mb-4">
-                    <TooltipProvider>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" disabled={isDownloading}>
-                             {isDownloading ? (
-                                <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" /> // Simple spinner
-                             ) : (
-                                <Download className="mr-2 h-4 w-4" />
-                             )}
-                             {isDownloading ? 'Downloading...' : 'Download'}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleDownload('md')} disabled={isDownloading}>
-                                <FileCode className="mr-2 h-4 w-4" /> Markdown (.md)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDownload('txt')} disabled={isDownloading}>
-                                <FileDigit className="mr-2 h-4 w-4" /> Plain Text (.txt)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleDownload('pdf')} disabled={isDownloading}>
-                                <FileX className="mr-2 h-4 w-4" /> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TooltipProvider>
-                 </div>
+              <div className="space-y-6">
+                {/* Top bar: Problem type + download */}
+                <div className="flex items-center justify-between">
+                  {problemData.generatedProblemType && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                        <LayoutDashboard className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">System Design Focus</p>
+                        <p className="text-sm font-semibold">{problemData.generatedProblemType}</p>
+                      </div>
+                    </div>
+                  )}
 
-                {/* System Design Focus Info Card */}
-                {problemData.generatedProblemType && (
-                    <Card className="bg-secondary/50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <Info className="text-primary h-5 w-5" />
-                                System Design Focus
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-md">
-                                <span className="font-semibold">Problem Type:</span> {problemData.generatedProblemType}
-                            </p>
-                        </CardContent>
-                    </Card>
-                )}
+                  <TooltipProvider>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 border-border/60" disabled={isDownloading}>
+                          {isDownloading ? (
+                            <span className="animate-spin mr-1.5 h-3 w-3 border-b-2 border-current rounded-full" />
+                          ) : (
+                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          {isDownloading ? 'Exporting...' : 'Export'}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => handleDownload('md')} disabled={isDownloading}>
+                          <FileCode className="mr-2 h-4 w-4" /> Markdown
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleDownload('txt')} disabled={isDownloading}>
+                          <FileDigit className="mr-2 h-4 w-4" /> Plain Text
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleDownload('pdf')} disabled={isDownloading}>
+                          <FileX className="mr-2 h-4 w-4" /> PDF
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TooltipProvider>
+                </div>
 
                 {/* Sections */}
                 {sections.map(section => (
-                <ProblemSection
+                  <ProblemSection
                     key={section.id}
                     title={section.title}
                     content={section.content}
                     icon={section.icon}
                     isVisible={section.isVisible}
                     isMarkdown={section.isMarkdown}
-                />
+                  />
                 ))}
 
                 {/* Diagram Section */}
                 {problemData.mermaidDiagram && visibility.diagram && (
-                <Card>
-                    <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                        <Projector className="text-primary" /> Diagram
-                    </CardTitle>
+                  <Card className="border-border/60 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <Projector className="h-5 w-5 text-primary" /> Architecture Diagram
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                    <div className="p-4 border rounded-md bg-secondary/30">
+                      <div className="p-6 rounded-lg bg-secondary/30 border border-border/40">
                         <MermaidDiagram chart={problemData.mermaidDiagram} />
-                    </div>
+                      </div>
                     </CardContent>
-                </Card>
+                  </Card>
                 )}
-                </>
+              </div>
             )}
           </main>
         </ScrollArea>

@@ -1,6 +1,7 @@
 /**
  * Sanitizes Mermaid code to fix common AI-generated syntax issues.
- * Handles: unquoted special chars in labels, markdown code fences, etc.
+ * Handles: malformed arrows, unquoted special chars, inner quotes,
+ * markdown code fences, incomplete edges, duplicate node definitions, etc.
  */
 export function sanitizeMermaidCode(code: string): string {
   // Strip markdown code fences if AI wrapped them
@@ -12,25 +13,59 @@ export function sanitizeMermaidCode(code: string): string {
   for (const line of lines) {
     let result = line;
 
-    // Quote edge labels |...| that contain special characters
-    // Match |text| where text has chars like () {} [] / and isn't already quoted
-    result = result.replace(/\|([^"|][^|]*)\|/g, (_match, label: string) => {
-      if (/[(){}[\]\/&<>]/.test(label)) {
-        return `|"${label}"|`;
+    // --- Fix malformed arrow syntax (before other transforms) ---
+
+    // Fix "--.->": extra dash before dotted arrow → "-.->"
+    result = result.replace(/-{2,}\.\->/g, '-.->');
+    // Fix "--..->": double dots → "-.->"
+    result = result.replace(/-+\.{2,}-*>/g, '-.->');
+    // Fix stray arrow fragments after edge labels: "|label|.->", "|label|-->" etc.
+    result = result.replace(/(\|[^|]*\|)\s*\.?-+>/g, '$1');
+
+    // Fix incomplete edges: "NodeA -- "some label"" with no target node → drop the line
+    // (An edge like `Node -- "text"` without a target is invalid)
+    if (/^\s*\w+\s+--\s+"[^"]*"\s*$/.test(result)) {
+      continue; // skip this line entirely
+    }
+
+    // --- Fix quoted strings used as node IDs ---
+    // AI sometimes writes: -->|label| "Some Name"([...]) or "Some Name"[...]
+    // Node IDs can't be quoted strings — convert to valid camelCase IDs.
+    result = result.replace(/"([^"]+)"\s*(\(?\[|\(?\()/g, (_match, name: string, shape: string) => {
+      const id = name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      return `${id}${shape}`;
+    });
+
+    // --- Quote edge labels |...| that contain special characters or inner quotes ---
+    result = result.replace(/\|([^|]+)\|/g, (_match, label: string) => {
+      const trimmed = label.trim();
+      // Already properly quoted
+      if (trimmed.startsWith('"') && trimmed.endsWith('"')) return `|${label}|`;
+      // Contains special chars or inner quotes — strip inner quotes and wrap
+      if (/[(){}[\]\/&<>"]/.test(trimmed)) {
+        const cleaned = trimmed.replace(/"/g, "'");
+        return `|"${cleaned}"|`;
       }
       return `|${label}|`;
     });
 
-    // Quote node labels in [...] that contain problematic characters
-    // Match ID[Label] or ID[Label text] but NOT shape syntax like [(...)], [(...)]
+    // --- Quote node labels in [...] that contain problematic characters or inner quotes ---
     result = result.replace(/(\w+)\[([^\]]*)\]/g, (_match, id: string, label: string) => {
-      // Skip if already quoted
-      if (label.startsWith('"') && label.endsWith('"')) return `${id}[${label}]`;
+      // Already properly quoted (starts and ends with ")
+      if (label.startsWith('"') && label.endsWith('"')) {
+        // Check for inner quotes that would break it: ["foo "bar" baz"]
+        const inner = label.slice(1, -1);
+        if (inner.includes('"')) {
+          return `${id}["${inner.replace(/"/g, "'")}"]`;
+        }
+        return `${id}[${label}]`;
+      }
       // Skip shape definitions: [(...)], [/...\], [\...\/], etc.
       if (/^[({/\\]/.test(label)) return `${id}[${label}]`;
-      // Quote if label contains special characters that break parsing
-      if (/[(){}\/&<>]/.test(label)) {
-        return `${id}["${label}"]`;
+      // Contains special chars or inner quotes — strip inner quotes and wrap
+      if (/[(){}\/&<>"]/.test(label)) {
+        const cleaned = label.replace(/"/g, "'");
+        return `${id}["${cleaned}"]`;
       }
       return `${id}[${label}]`;
     });
@@ -58,25 +93,26 @@ export function validateMermaidSyntax(code: string): string | null {
     return `Diagram must start with a valid type (e.g., "graph TD" or "flowchart TD"), but starts with: "${lines[0]}"`;
   }
 
-  // Check for unquoted labels with special chars (most common AI mistake)
+  // Check for problematic labels (most common AI mistakes)
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     // Skip comments and subgraph/end keywords
     if (line.startsWith('%%') || line === 'end' || line.startsWith('subgraph ') || line.startsWith('style ') || line.startsWith('classDef ')) continue;
 
-    // Check for unquoted edge labels with special chars: |label with (parens)|
-    const edgeLabelMatch = line.match(/\|([^"|][^|]*)\|/g);
+    // Check for unquoted edge labels with special chars or inner quotes
+    const edgeLabelMatch = line.match(/\|([^|]+)\|/g);
     if (edgeLabelMatch) {
       for (const match of edgeLabelMatch) {
-        const label = match.slice(1, -1);
-        if (/[(){}[\]]/.test(label)) {
-          return `Line ${i + 1}: Edge label "${label}" contains special characters that must be quoted. Use |"${label}"| instead of |${label}|`;
+        const label = match.slice(1, -1).trim();
+        if (label.startsWith('"') && label.endsWith('"')) continue; // properly quoted
+        if (/[(){}[\]"]/.test(label)) {
+          return `Line ${i + 1}: Edge label "${label}" contains special characters that must be quoted.`;
         }
       }
     }
 
-    // Check for unquoted node labels with special chars: ID[label (with parens)]
-    const nodeLabelMatch = line.match(/\w+\[([^\]"]*)\]/g);
+    // Check for unquoted node labels with special chars or inner quotes
+    const nodeLabelMatch = line.match(/\w+\[([^\]]*)\]/g);
     if (nodeLabelMatch) {
       for (const match of nodeLabelMatch) {
         const labelMatch = match.match(/\w+\[([^\]]*)\]/);
@@ -84,8 +120,10 @@ export function validateMermaidSyntax(code: string): string | null {
           const label = labelMatch[1];
           // Skip shape syntax like [(...)], [/...\]
           if (/^[({/\\]/.test(label)) continue;
-          if (/[(){}]/.test(label)) {
-            return `Line ${i + 1}: Node label "${label}" contains special characters that must be quoted. Wrap it in double quotes.`;
+          // Skip properly quoted
+          if (label.startsWith('"') && label.endsWith('"') && !label.slice(1, -1).includes('"')) continue;
+          if (/[(){}"]/.test(label)) {
+            return `Line ${i + 1}: Node label "${label}" contains special characters or inner quotes that must be fixed.`;
           }
         }
       }
