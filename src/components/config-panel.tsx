@@ -62,7 +62,7 @@ export function ConfigPanel({ onSubmit, isLoading, visibility, setVisibility, is
     defaultValues: {
       difficultyLevel: "Medium",
       problemType: "",
-      modelName: 'googleai/gemini-2.5-flash',
+      modelName: 'googleai/gemini-2.5-flash-lite',
     },
   });
 
